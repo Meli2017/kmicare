@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = "mysql://u214268980_nom_utilisateur:KmiCareMotsDePasse2026@localhost:3306/u214268980_kmicaredb"
+  url      = env("DATABASE_URL")
 }
 
 // Admin user for authentication
