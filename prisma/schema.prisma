@@ -1,0 +1,91 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./db/kmi.db"
+}
+
+// Admin user for authentication
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String   // Hashed password using bcrypt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Availability slots managed by admin
+model AvailabilitySlot {
+  id        String   @id @default(cuid())
+  dayOfWeek Int      // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  startTime String   // Format: "HH:MM" (e.g., "09:00")
+  endTime   String   // Format: "HH:MM" (e.g., "17:00")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Specific blocked dates (holidays, etc.)
+model BlockedDate {
+  id        String   @id @default(cuid())
+  date      String   @unique // Format: "YYYY-MM-DD"
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One-time availability for a specific date (overrides weekly schedule)
+model DateAvailability {
+  id        String   @id @default(cuid())
+  date      String   // Format: "YYYY-MM-DD"
+  startTime String   // Format: "HH:MM"
+  endTime   String   // Format: "HH:MM"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Bookings made by visitors
+model Booking {
+  id           String   @id @default(cuid())
+  service      String   // Service name
+  serviceName  String   // Display name of service
+  date         String   // Format: "YYYY-MM-DD"
+  time         String   // Format: "HH:MM"
+  address      String   // Customer address
+  customerName String?  // Optional customer name
+  email        String?
+  phone        String?  // Optional customer phone
+  status       String   @default("pending") // pending, confirmed, completed, cancelled
+  notes        String?  // Additional notes
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Testimonials managed by admin
+model Testimonial {
+  id           String   @id @default(cuid())
+  customerName String   // Customer name
+  message      String   // Testimonial text
+  rating       Int      @default(5) // 1-5 stars
+  isActive     Boolean  @default(true)
+  order        Int      @default(0) // Display order
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Social links managed by admin
+model SocialLink {
+  id        String   @id @default(cuid())
+  platform  String   // e.g., "facebook", "instagram", "twitter", "tiktok"
+  url       String   // Full URL to the social profile
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
