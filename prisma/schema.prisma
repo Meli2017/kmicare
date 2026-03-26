@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./db/kmi.db"
+  provider = "mysql"
+  url      = "mysql://u214268980_nom_utilisateur:Kmihomecarcarepasword@1@localhost:3306/u214268980_kmicaredb"
 }
 
 // Admin user for authentication
