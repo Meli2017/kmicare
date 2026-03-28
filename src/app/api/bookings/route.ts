@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { cookies } from 'next/headers';
+import { sendBookingNotification, sendStatusUpdateEmail } from '@/lib/email';
 
 // GET - Fetch all bookings (admin only)
 export async function GET(request: NextRequest) {
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
     
     const bookings = await db.booking.findMany({
-      orderBy: [{ date: 'asc' }, { time: 'asc' }],
+      orderBy: { createdAt: 'desc' },
     });
     
     return NextResponse.json(bookings);
@@ -33,13 +34,37 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { service, serviceName, date, time, address, customerName, email, phone, notes } = body;
+    const { service, serviceName, date, time, address, customerName, email, phone, notes, recaptchaToken } = body;
     
     if (!service || !serviceName || !date || !time || !address) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
+    }
+
+    // Vérification reCAPTCHA v3
+    if (recaptchaToken && process.env.RECAPTCHA_SECRET_KEY) {
+      try {
+        const recaptchaRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptchaToken}`,
+        });
+        const recaptchaData = await recaptchaRes.json();
+
+        if (!recaptchaData.success || recaptchaData.score < 0.3) {
+          console.log('reCAPTCHA blocked:', recaptchaData);
+          return NextResponse.json(
+            { error: 'Verification anti-bot echouee. Veuillez reessayer.' },
+            { status: 403 }
+          );
+        }
+        console.log('reCAPTCHA score:', recaptchaData.score);
+      } catch (err) {
+        console.error('reCAPTCHA verification error:', err);
+        // Continuer sans bloquer en cas d'erreur de vérification
+      }
     }
     
     const booking = await db.booking.create({
@@ -56,6 +81,18 @@ export async function POST(request: NextRequest) {
         status: 'pending',
       },
     });
+    
+    // Envoyer l'email de notification (sans bloquer la réponse)
+    sendBookingNotification({
+      service: serviceName || service,
+      date,
+      time,
+      address,
+      customerName,
+      email,
+      phone,
+      notes,
+    }).catch(err => console.error('Email notification failed:', err));
     
     return NextResponse.json(booking);
   } catch (error) {
@@ -94,6 +131,17 @@ export async function PUT(request: NextRequest) {
       where: { id },
       data: { status },
     });
+    
+    // Envoyer un email au client si son email est renseigné et si le statut est confirmé ou annulé
+    if (booking.email && (status === 'confirmed' || status === 'cancelled' || status === 'completed')) {
+      sendStatusUpdateEmail(booking.email, status, {
+        service: booking.serviceName || booking.service,
+        date: booking.date,
+        time: booking.time,
+        address: booking.address,
+        customerName: booking.customerName || undefined,
+      }).catch(err => console.error('Status email failed:', err));
+    }
     
     return NextResponse.json(booking);
   } catch (error) {

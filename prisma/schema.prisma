@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = "mysql://u214268980_username:KmiCareMotsDePasse2026@localhost:3306/u214268980_kmicaredb"
+  url      = env("DATABASE_URL")
 }
 
 // Admin user for authentication
@@ -84,6 +84,16 @@ model SocialLink {
   id        String   @id @default(cuid())
   platform  String   // e.g., "facebook", "instagram", "twitter", "tiktok"
   url       String   // Full URL to the social profile
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Service areas (dynamic zones) managed by admin
+model ServiceArea {
+  id        String   @id @default(cuid())
+  name      String   @unique
   isActive  Boolean  @default(true)
   order     Int      @default(0)
   createdAt DateTime @default(now())

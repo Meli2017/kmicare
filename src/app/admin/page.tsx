@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { 
   Lock, LogOut, Plus, Trash2, Clock, Calendar, CheckCircle, XCircle, 
-  AlertCircle, Loader2, Home, Car, Star, Share2
+  AlertCircle, Loader2, Home, Car, Star, Share2, MapPin, GripVertical
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -58,6 +58,13 @@ interface SocialLink {
   order: number;
 }
 
+interface ServiceArea {
+  id: string;
+  name: string;
+  isActive: boolean;
+  order: number;
+}
+
 interface DateAvailability {
   id: string;
   date: string;
@@ -92,6 +99,7 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
 
 
   // Data state for date-specific availabilities
@@ -114,6 +122,11 @@ export default function AdminPage() {
   // Form state for social link
   const [newSocialPlatform, setNewSocialPlatform] = useState('facebook');
   const [newSocialUrl, setNewSocialUrl] = useState('');
+
+  // Form state for service area
+  const [newServiceArea, setNewServiceArea] = useState('');
+  // Drag state
+  const [draggedAreaId, setDraggedAreaId] = useState<string | null>(null);
 
   // Booking deletion state
   const [bookingToDelete, setBookingToDelete] = useState<string | null>(null);
@@ -186,12 +199,13 @@ export default function AdminPage() {
 
   const fetchData = async () => {
     try {
-      const [blockedRes, bookingsRes, testimonialsRes, socialRes, dateAvailRes] = await Promise.all([
+      const [blockedRes, bookingsRes, testimonialsRes, socialRes, dateAvailRes, areasRes] = await Promise.all([
         fetch('/api/blocked-dates'),
         fetch('/api/bookings'),
         fetch('/api/testimonials'),
         fetch('/api/social-links'),
         fetch('/api/date-availabilities'),
+        fetch('/api/service-areas'),
       ]);
 
       if (blockedRes.ok) setBlockedDates(await blockedRes.json());
@@ -199,6 +213,7 @@ export default function AdminPage() {
       if (testimonialsRes.ok) setTestimonials(await testimonialsRes.json());
       if (socialRes.ok) setSocialLinks(await socialRes.json());
       if (dateAvailRes.ok) setDateAvailabilities(await dateAvailRes.json());
+      if (areasRes.ok) setServiceAreas(await areasRes.json());
     } catch (error) {
       console.error('Fetch data error:', error);
     }
@@ -512,6 +527,110 @@ export default function AdminPage() {
     }
   };
 
+  // Service Area functions
+  const addServiceArea = async () => {
+    if (!newServiceArea.trim()) {
+      toast({ title: "Erreur", description: "Le nom de la zone est requis.", variant: "destructive" });
+      return;
+    }
+    try {
+      const res = await fetch('/api/service-areas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newServiceArea }),
+      });
+      if (res.ok) {
+        const newArea = await res.json();
+        setServiceAreas([...serviceAreas, newArea]);
+        setNewServiceArea('');
+        toast({ title: "Zone ajoutée", description: "La zone de service a été ajoutée avec succès." });
+      } else {
+        const error = await res.json();
+        toast({ title: "Erreur", description: error.error || "Une erreur est survenue.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Add service area error:', error);
+    }
+  };
+
+  const toggleServiceAreaActive = async (area: ServiceArea) => {
+    try {
+      const res = await fetch('/api/service-areas', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: area.id, isActive: !area.isActive }),
+      });
+      if (res.ok) {
+        setServiceAreas(serviceAreas.map(a => a.id === area.id ? { ...a, isActive: !a.isActive } : a));
+      }
+    } catch (error) {
+      console.error('Toggle service area error:', error);
+    }
+  };
+
+  const deleteServiceArea = async (id: string) => {
+    try {
+      const res = await fetch(`/api/service-areas?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setServiceAreas(serviceAreas.filter(a => a.id !== id));
+        toast({ title: "Zone supprimée", description: "La zone de service a été supprimée." });
+      }
+    } catch (error) {
+      console.error('Delete service area error:', error);
+    }
+  };
+
+  // Drag and drop for service areas
+  const handleDragStartArea = (e: React.DragEvent, id: string) => {
+    setDraggedAreaId(id);
+    e.dataTransfer.effectAllowed = "move";
+    setTimeout(() => {
+      (e.target as HTMLElement).style.opacity = '0.4';
+    }, 0);
+  };
+
+  const handleDragEndArea = (e: React.DragEvent) => {
+    (e.target as HTMLElement).style.opacity = '1';
+    setDraggedAreaId(null);
+  };
+
+  const handleDragOverArea = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDropArea = async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedAreaId || draggedAreaId === targetId) return;
+
+    const oldIndex = serviceAreas.findIndex(a => a.id === draggedAreaId);
+    const newIndex = serviceAreas.findIndex(a => a.id === targetId);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const updatedAreas = [...serviceAreas];
+    const [movedArea] = updatedAreas.splice(oldIndex, 1);
+    updatedAreas.splice(newIndex, 0, movedArea);
+
+    const sortedAreas = updatedAreas.map((area, index) => ({
+      ...area,
+      order: index
+    }));
+
+    setServiceAreas(sortedAreas);
+
+    try {
+      await fetch('/api/service-areas/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: sortedAreas.map(a => ({ id: a.id, order: a.order })) }),
+      });
+    } catch (error) {
+      console.error('Erreur réorganisation:', error);
+      toast({ title: "Erreur", description: "Impossible de sauvegarder l'ordre.", variant: "destructive" });
+    }
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -629,9 +748,13 @@ export default function AdminPage() {
               <Star className="w-4 h-4" />
               Témoignages
             </TabsTrigger>
-            <TabsTrigger value="social" className="gap-2 rounded-lg data-[state=active]:bg-cyan-600 data-[state=active]:text-white">
+            <TabsTrigger value="social" className="gap-2 rounded-lg data-[state=active]:bg-cyan-600 data-[state=active]:text-white hidden lg:flex">
               <Share2 className="w-4 h-4" />
-              Réseaux sociaux
+              Réseaux
+            </TabsTrigger>
+            <TabsTrigger value="service-areas" className="gap-2 rounded-lg data-[state=active]:bg-cyan-600 data-[state=active]:text-white">
+              <MapPin className="w-4 h-4" />
+              Villes
             </TabsTrigger>
           </TabsList>
 
@@ -850,11 +973,7 @@ export default function AdminPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {bookings.sort((a, b) => {
-                    const dateCompare = a.date.localeCompare(b.date);
-                    if (dateCompare !== 0) return dateCompare;
-                    return a.time.localeCompare(b.time);
-                  }).map(booking => (
+                  {bookings.map(booking => (
                     <div
                       key={booking.id}
                       className="p-4 rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow"
@@ -906,6 +1025,10 @@ export default function AdminPage() {
                               {booking.notes}
                             </div>
                           )}
+                          
+                          <div className="text-xs text-gray-400 mt-1">
+                            Soumise le {new Date(booking.createdAt).toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' })} à {new Date(booking.createdAt).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
                         </div>
                         
                         <div className="flex flex-wrap gap-2">
@@ -1189,6 +1312,87 @@ export default function AdminPage() {
                       <div className="text-center text-gray-500 py-8">
                         <Share2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
                         <p>Aucun lien social configuré</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Service Areas Tab */}
+          <TabsContent value="service-areas">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Plus className="w-5 h-5 text-cyan-600" />
+                    Ajouter une zone
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Nom de la ville ou zone</Label>
+                    <Input
+                      type="text"
+                      placeholder="Ex: Montréal, Laval..."
+                      value={newServiceArea}
+                      onChange={(e) => setNewServiceArea(e.target.value)}
+                    />
+                  </div>
+                  
+                  <Button onClick={addServiceArea} className="w-full bg-cyan-600 hover:bg-cyan-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Ajouter la zone
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Zones configurées</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {serviceAreas.map(area => (
+                      <div
+                        key={area.id}
+                        draggable
+                        onDragStart={(e) => handleDragStartArea(e, area.id)}
+                        onDragEnd={handleDragEndArea}
+                        onDragOver={handleDragOverArea}
+                        onDrop={(e) => handleDropArea(e, area.id)}
+                        className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                          draggedAreaId === area.id ? 'opacity-50' : ''
+                        } ${
+                          area.isActive ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="cursor-grab hover:bg-black/5 p-1 rounded active:cursor-grabbing text-gray-400">
+                            <GripVertical className="w-5 h-5" />
+                          </div>
+                          <Switch
+                            checked={area.isActive}
+                            onCheckedChange={() => toggleServiceAreaActive(area)}
+                          />
+                          <p className="font-medium">{area.name}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteServiceArea(area.id)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    
+                    {serviceAreas.length === 0 && (
+                      <div className="text-center text-gray-500 py-8">
+                        <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p>Aucune zone de service configurée</p>
                       </div>
                     )}
                   </div>

@@ -48,6 +48,13 @@ interface DateAvailability {
   isActive: boolean;
 }
 
+interface ServiceArea {
+  id: string;
+  name: string;
+  isActive: boolean;
+  order: number;
+}
+
 // Services data with categories
 const servicesCategories = [
   {
@@ -281,6 +288,7 @@ export default function LandingPage() {
   const [availableTimeSlots, setAvailableTimeSlots] = useState<{ start: string, end: string }[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>(defaultTestimonials);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false);
 
@@ -288,11 +296,12 @@ export default function LandingPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [blockedRes, testimonialsRes, socialRes, dateAvailRes] = await Promise.all([
+        const [blockedRes, testimonialsRes, socialRes, dateAvailRes, areasRes] = await Promise.all([
           fetch('/api/blocked-dates'),
           fetch('/api/testimonials'),
           fetch('/api/social-links'),
           fetch('/api/date-availabilities'),
+          fetch('/api/service-areas?activeOnly=true'),
         ]);
 
         if (blockedRes.ok) {
@@ -311,6 +320,10 @@ export default function LandingPage() {
         if (dateAvailRes.ok) {
           const dSlots = await dateAvailRes.json();
           setDateAvailabilities(dSlots.filter((s: DateAvailability) => s.isActive));
+        }
+
+        if (areasRes.ok) {
+          setServiceAreas(await areasRes.json());
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -440,10 +453,21 @@ export default function LandingPage() {
 
   // Handle booking
   const handleBooking = async () => {
-    if (!selectedDate || !selectedTime || !address || !selectedService) {
+    if (!selectedDate || !selectedTime || !address || !selectedService || !phone) {
       toast({
         title: "❌ Informations manquantes",
-        description: "Veuillez remplir tous les champs obligatoires (service, date, heure, adresse).",
+        description: "Veuillez remplir tous les champs obligatoires (service, date, heure, adresse, téléphone).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation du numéro de téléphone canadien (10 chiffres)
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length !== 10) {
+      toast({
+        title: "❌ Numéro invalide",
+        description: "Le numéro de téléphone doit contenir 10 chiffres (ex: 514 123 4567).",
         variant: "destructive",
       });
       return;
@@ -452,6 +476,26 @@ export default function LandingPage() {
     setIsLoading(true);
 
     try {
+      // Obtenir le token reCAPTCHA v3
+      let recaptchaToken = '';
+      try {
+        recaptchaToken = await new Promise<string>((resolve, reject) => {
+          const w = window as any;
+          if (!w.grecaptcha) {
+            reject('reCAPTCHA not loaded');
+            return;
+          }
+          w.grecaptcha.ready(() => {
+            w.grecaptcha
+              .execute(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY, { action: 'booking' })
+              .then(resolve)
+              .catch(reject);
+          });
+        });
+      } catch (recaptchaError) {
+        console.error('reCAPTCHA error:', recaptchaError);
+      }
+
       await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -465,6 +509,7 @@ export default function LandingPage() {
           email,
           phone,
           notes,
+          recaptchaToken,
         }),
       });
 
@@ -490,7 +535,7 @@ export default function LandingPage() {
 
   // Ouvrir WhatsApp avec le message pré-rempli
   const handleOpenWhatsApp = () => {
-    const whatsappUrl = `https://wa.me/16138070161?text=${generateWhatsAppMessage()}`;
+    const whatsappUrl = `https://wa.me/18733442040?text=${generateWhatsAppMessage()}`;
     window.open(whatsappUrl, '_blank');
     setShowWhatsAppDialog(false);
   };
@@ -593,25 +638,25 @@ export default function LandingPage() {
           ))}
         </div>
 
-        <div className="container mx-auto px-4 py-20 md:py-28 relative z-10">
+        <div className="container mx-auto px-4 py-12 md:py-28 relative z-10">
           <div className="max-w-3xl">
             {/* Logo */}
-            <div className="flex items-center gap-4 mb-8">
+            <div className="flex items-center gap-2 md:gap-4 mb-6 md:mb-8">
               <div className="relative">
-                <Home className="w-14 h-14 md:w-16 md:h-16 drop-shadow-lg" />
-                <Sparkles className="w-5 h-5 absolute -top-1 -right-1 text-yellow-400 animate-pulse" />
+                <Home className="w-10 h-10 md:w-16 md:h-16 drop-shadow-lg" />
+                <Sparkles className="w-4 h-4 md:w-5 md:h-5 absolute -top-1 -right-1 text-yellow-400 animate-pulse" />
               </div>
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold">
+                <h1 className="text-xl md:text-3xl font-bold">
                   <span className="text-cyan-300">KMI</span> Home & Car Care
                 </h1>
-                <p className="text-cyan-200 text-sm">Nettoyage professionnel à domicile</p>
+                <p className="text-cyan-200 text-xs md:text-sm">Nettoyage professionnel à domicile</p>
               </div>
-              <Car className="w-14 h-14 md:w-16 md:h-16 drop-shadow-lg" />
+              <Car className="w-10 h-10 md:w-16 md:h-16 drop-shadow-lg" />
             </div>
 
             {/* Carousel Content */}
-            <div className="min-h-[180px] md:min-h-[200px]">
+            <div className="min-h-[220px] md:min-h-[200px]">
               {defaultCarouselSlides.map((slide, index) => (
                 <div
                   key={index}
@@ -622,10 +667,10 @@ export default function LandingPage() {
                 >
                   {index === currentSlide && (
                     <>
-                      <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight drop-shadow-lg">
+                      <h2 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold mb-3 md:mb-4 leading-tight drop-shadow-lg">
                         {slide.title}
                       </h2>
-                      <p className="text-lg md:text-xl text-cyan-100 mb-8 max-w-xl">
+                      <p className="text-base md:text-xl text-cyan-100 mb-6 md:mb-8 max-w-xl leading-relaxed">
                         {slide.subtitle}
                       </p>
                     </>
@@ -635,7 +680,7 @@ export default function LandingPage() {
             </div>
 
             {/* Quick features */}
-            <div className="flex flex-wrap gap-4 mb-8">
+            <div className="hidden md:flex flex-wrap gap-4 mb-8">
               {[
                 { icon: Zap, text: "Intervention rapide" },
                 { icon: Shield, text: "Produits sécuritaires" },
@@ -649,21 +694,21 @@ export default function LandingPage() {
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-wrap gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 mb-6 md:mb-8 w-full sm:w-auto">
               <Button
                 size="lg"
-                className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold text-lg px-8 py-6 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
+                className="w-full sm:w-auto bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold text-base md:text-lg px-6 md:px-8 py-6 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
                 onClick={() => document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth' })}
               >
                 <CalendarCheck className="w-5 h-5 mr-2" />
                 Prendre rendez-vous
               </Button>
 
-              <a href="https://wa.me/16138070161" target="_blank" rel="noopener noreferrer">
+              <a href="https://wa.me/18733442040" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto block">
                 <Button
                   size="lg"
                   variant="outline"
-                  className="bg-white/10 border-white/30 text-white hover:bg-white/20 font-semibold text-lg px-8 py-6 rounded-full"
+                  className="w-full sm:w-auto bg-white/10 border-white/30 text-white hover:bg-white/20 font-semibold text-base md:text-lg px-6 md:px-8 py-6 rounded-full"
                 >
                   <MessageCircle className="w-5 h-5 mr-2" />
                   WhatsApp
@@ -672,7 +717,7 @@ export default function LandingPage() {
             </div>
 
             {/* Promotion badge */}
-            <div className="inline-flex items-center gap-2 bg-yellow-400/95 text-gray-900 px-6 py-3 rounded-full font-bold shadow-lg">
+            <div className="hidden md:inline-flex items-center gap-2 bg-yellow-400/95 text-gray-900 px-6 py-3 rounded-full font-bold shadow-lg">
               <Star className="w-5 h-5 fill-current" />
               10% SUR LA 1ÈRE VISITE
             </div>
@@ -727,7 +772,7 @@ export default function LandingPage() {
       </section>
 
       {/* Services Section */}
-      <section className="p-30 py-20 md:py-28 bg-white" id="services">
+      <section className="py-20 md:py-28 bg-white" id="services">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -787,7 +832,7 @@ export default function LandingPage() {
             <h3 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">
               Nos Packs Avantageux
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto p-10">
               {packsData.map((pack, index) => {
                 const IconComponent = pack.icon;
                 return (
@@ -885,7 +930,7 @@ export default function LandingPage() {
                 <div className="space-y-5">
                   <div>
                     <Label htmlFor="service" className="text-lg font-semibold text-gray-900 mb-3 block">
-                      🧹 Service souhaité *
+                      🧹 Service souhaité <span className="text-red-500">*</span>
                     </Label>
                     <Select value={selectedService} onValueChange={setSelectedService}>
                       <SelectTrigger id="service" className="h-14 rounded-xl text-lg">
@@ -910,7 +955,7 @@ export default function LandingPage() {
 
                   <div>
                     <Label htmlFor="address" className="text-lg font-semibold text-gray-900 mb-3 block">
-                      📍 Votre adresse *
+                      📍 Votre adresse <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="address"
@@ -936,15 +981,21 @@ export default function LandingPage() {
                     </div>
                     <div>
                       <Label htmlFor="phone" className="text-base font-semibold text-gray-900 mb-2 block">
-                        📞 Téléphone
+                        📞 Téléphone <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id="phone"
-                        placeholder="(514) 123-4567"
+                        type="tel"
+                        placeholder="5141234567"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="h-12 rounded-xl"
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        maxLength={10}
+                        className={`h-12 rounded-xl ${phone && phone.length !== 10 ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+                        required
                       />
+                      {phone && phone.length !== 10 && (
+                        <p className="text-red-500 text-xs mt-1">Le numéro doit contenir exactement 10 chiffres ({phone.length}/10)</p>
+                      )}
                     </div>
                   </div>
 
@@ -958,8 +1009,11 @@ export default function LandingPage() {
                       placeholder="votre@email.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="h-12 rounded-xl"
+                      className={`h-12 rounded-xl ${email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
                     />
+                    {email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (
+                      <p className="text-red-500 text-xs mt-1">Format invalide (ex: nom@domaine.com)</p>
+                    )}
                   </div>
 
                   <div>
@@ -990,7 +1044,7 @@ export default function LandingPage() {
 
                   <Button
                     onClick={handleBooking}
-                    disabled={!selectedDate || !selectedTime || !selectedService || !address || isLoading}
+                    disabled={!selectedDate || !selectedTime || !selectedService || !address || !phone || isLoading}
                     className="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-xl py-7 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50"
                   >
                     <MessageCircle className="w-6 h-6 mr-2" />
@@ -1121,22 +1175,34 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 text-center">
           <p className="text-[#003366] font-semibold text-lg mb-6">Zones de service principales :</p>
           <div className="flex flex-wrap justify-center gap-3">
-            {['Montréal', 'Laval', 'Longueuil', 'Brossard', 'Dollard-des-Ormeaux', 'Pointe-Claire', 'Kirkland'].map((city) => (
-              <span
-                key={city}
-                className="px-5 py-2 bg-white border border-[#003366]/20 text-[#003366] rounded-full text-sm font-medium shadow-sm hover:shadow-md hover:border-[#003366]/40 transition-all duration-300 cursor-default"
-              >
-                {city}
-              </span>
-            ))}
+            {serviceAreas.length > 0 ? (
+              serviceAreas.map((area) => (
+                <span
+                  key={area.id}
+                  className="px-5 py-2 bg-white border border-[#003366]/20 text-[#003366] rounded-full text-sm font-medium shadow-sm hover:shadow-md hover:border-[#003366]/40 transition-all duration-300 cursor-default"
+                >
+                  {area.name}
+                </span>
+              ))
+            ) : (
+              // Affichage temporaire fluide en attendant le chargement
+              ['Montréal', 'Laval', 'Longueuil', 'Brossard', 'Dollard-des-Ormeaux', 'Pointe-Claire', 'Kirkland'].map((city) => (
+                <span
+                  key={city}
+                  className="px-5 py-2 bg-white border border-[#003366]/20 text-[#003366] rounded-full text-sm font-medium shadow-sm opacity-50 cursor-default"
+                >
+                  {city}
+                </span>
+              ))
+            )}
           </div>
         </div>
       </section>
 
       {/* Features/Trust Section */}
-      <section className="p-30 py-16 bg-white">
+      <section className="p-10 py-16 bg-white">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               { icon: Clock, title: "Disponible 7j/7", desc: "Intervention rapide" },
               { icon: Shield, title: "Produits sécuritaires", desc: "Écologiques et efficaces" },
@@ -1213,11 +1279,24 @@ export default function LandingPage() {
                   <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-[#003366] text-white flex items-center justify-center hover:bg-cyan-600 transition-all duration-300 hover:scale-110 shadow-sm">
                     <Instagram className="w-4 h-4" />
                   </a>
-                  <a href="https://wa.me/16138070161" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-[#003366] text-white flex items-center justify-center hover:bg-cyan-600 transition-all duration-300 hover:scale-110 shadow-sm">
+                  <a href="https://wa.me/18733442040" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-[#003366] text-white flex items-center justify-center hover:bg-cyan-600 transition-all duration-300 hover:scale-110 shadow-sm">
                     <MessageCircle className="w-4 h-4" />
                   </a>
                 </>
               )}
+
+              {/* Bouton d'appel direct ajouté à côté des réseaux */}
+              <a 
+                href="tel:18733442040" 
+                title="(873) 344-2040" 
+                className="w-10 h-10 rounded-full bg-cyan-600 text-white flex items-center justify-center hover:bg-cyan-700 transition-all duration-300 hover:scale-110 shadow-md group relative"
+              >
+                <Phone className="w-4 h-4" />
+                {/* Tooltip visible au survol */}
+                <span className="absolute -top-10 scale-0 transition-all rounded bg-gray-900 p-2 text-xs text-white group-hover:scale-100 whitespace-nowrap shadow-lg border border-gray-700">
+                  (873) 344-2040
+                </span>
+              </a>
             </div>
           </div>
         </div>
