@@ -291,6 +291,7 @@ export default function LandingPage() {
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false);
+  const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 
   // Fetch all data on mount
   useEffect(() => {
@@ -957,10 +958,10 @@ export default function LandingPage() {
                     </Label>
                     <Input
                       id="address"
-                      placeholder="123 Rue Principale, Montréal, QC"
+                      placeholder="Saisir votre adresse complète"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      className="h-14 rounded-xl text-lg"
+                      className="h-14 rounded-xl text-lg placeholder:text-gray-400"
                     />
                   </div>
 
@@ -971,10 +972,10 @@ export default function LandingPage() {
                       </Label>
                       <Input
                         id="name"
-                        placeholder="Votre nom"
+                        placeholder="ex: Jean Dupont"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
-                        className={`h-12 rounded-xl ${customerName === '' && address ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+                        className={`h-12 rounded-xl placeholder:text-gray-400 ${customerName === '' && address ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
                         required
                       />
                       {customerName === '' && address && (
@@ -988,11 +989,11 @@ export default function LandingPage() {
                       <Input
                         id="phone"
                         type="tel"
-                        placeholder="5141234567"
+                        placeholder="10 chiffres, ex: 8001234567"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                         maxLength={10}
-                        className={`h-12 rounded-xl ${phone && phone.length !== 10 ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+                        className={`h-12 rounded-xl placeholder:text-gray-400 ${phone && phone.length !== 10 ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
                         required
                       />
                       {phone && phone.length !== 10 && (
@@ -1011,7 +1012,7 @@ export default function LandingPage() {
                       placeholder="votre@email.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className={`h-12 rounded-xl ${email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+                      className={`h-12 rounded-xl placeholder:text-gray-400 ${email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
                     />
                     {email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (
                       <p className="text-red-500 text-xs mt-1">Format invalide (ex: nom@domaine.com)</p>
@@ -1028,7 +1029,7 @@ export default function LandingPage() {
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       rows={3}
-                      className="rounded-xl"
+                      className="rounded-xl placeholder:text-gray-400"
                     />
                   </div>
 
@@ -1054,19 +1055,25 @@ export default function LandingPage() {
                   </Button>
 
                   {/* Info tooltip */}
+                  {showInfoTooltip && (
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowInfoTooltip(false)}
+                    />
+                  )}
                   <div className="flex justify-end mt-1">
-                    <div className="relative group inline-flex items-center gap-1.5 cursor-pointer">
+                    <div className="relative inline-flex items-center gap-1.5 cursor-pointer">
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-cyan-600 transition-colors focus:outline-none"
-                        onClick={(e) => { e.currentTarget.nextElementSibling?.classList.toggle('hidden'); }}
+                        onClick={() => setShowInfoTooltip((v) => !v)}
                       >
                         <Info className="w-3.5 h-3.5" />
-                        <span>Service non listé ?</span>
+                        <span>Service non listé ?</span>
                       </button>
-                      {/* Tooltip — visible on hover (desktop) or tap (mobile) */}
-                      <div className="hidden group-hover:block absolute bottom-6 right-0 z-50 w-64 bg-gray-900 text-white text-xs rounded-xl p-3 shadow-xl leading-relaxed">
-                        <p className="font-semibold mb-1">💡 Astuce :</p>
+                      {/* Tooltip — visible on hover (desktop) or via state (tap mobile) */}
+                      <div className={`absolute bottom-6 right-0 z-50 w-64 bg-gray-900 text-white text-xs rounded-xl p-3 shadow-xl leading-relaxed transition-all duration-200 ${showInfoTooltip ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+                        <p className="font-semibold mb-1">💡 Astuce :</p>
                         <p>Si votre besoin n&apos;est pas dans la liste, choisissez la rubrique la plus proche et décrivez votre demande dans la section <strong>Notes</strong>. Nous vous contacterons pour adapter le service.</p>
                         <div className="absolute -bottom-1.5 right-4 w-3 h-3 bg-gray-900 rotate-45"></div>
                       </div>
