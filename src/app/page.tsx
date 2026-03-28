@@ -15,7 +15,7 @@ import {
   Home, Car, Sparkles, Phone, MapPin, Clock, CheckCircle, Star,
   Shield, Zap, Heart, CalendarCheck, MessageCircle,
   Building, Wrench, SprayCan, Menu, X, ChevronLeft, ChevronRight,
-  Facebook, Instagram, Twitter, Mail, Quote, Verified
+  Facebook, Instagram, Twitter, Mail, Quote, Verified, Info
 } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -617,7 +617,7 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section with Carousel */}
-      <section className="p-30 relative overflow-hidden text-white">
+      <section className="relative overflow-hidden text-white min-h-[500px] flex items-center">
         {/* Carousel Background */}
         <div className="absolute inset-0">
           {defaultCarouselSlides.map((slide, index) => (
@@ -638,7 +638,7 @@ export default function LandingPage() {
           ))}
         </div>
 
-        <div className="container mx-auto px-4 py-12 md:py-28 relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 md:px-8 py-16 md:py-28 relative z-10 w-full">
           <div className="max-w-3xl">
             {/* Logo */}
             <div className="flex items-center gap-2 md:gap-4 mb-6 md:mb-8">
@@ -694,23 +694,21 @@ export default function LandingPage() {
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 mb-6 md:mb-8 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 mb-6 md:mb-8 w-full">
               <Button
-                size="lg"
-                className="w-full sm:w-auto bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold text-base md:text-lg px-6 md:px-8 py-6 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
+                className="w-full sm:w-auto h-auto min-h-[54px] bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold text-sm md:text-lg px-4 md:px-8 py-3 md:py-5 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] flex items-center justify-center whitespace-normal break-words text-center"
                 onClick={() => document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth' })}
               >
-                <CalendarCheck className="w-5 h-5 mr-2" />
-                Prendre rendez-vous
+                <CalendarCheck className="w-4 h-4 md:w-5 md:h-5 mr-2 shrink-0" />
+                <span>Prendre rendez-vous</span>
               </Button>
 
               <a href="https://wa.me/18733442040" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto block">
                 <Button
-                  size="lg"
                   variant="outline"
-                  className="w-full sm:w-auto bg-white/10 border-white/30 text-white hover:bg-white/20 font-semibold text-base md:text-lg px-6 md:px-8 py-6 rounded-full"
+                  className="w-full sm:w-auto h-auto min-h-[54px] bg-white/10 border-white/30 text-white hover:bg-white/20 font-semibold text-sm md:text-lg px-4 md:px-8 py-3 md:py-5 rounded-full flex items-center justify-center whitespace-normal break-words text-center"
                 >
-                  <MessageCircle className="w-5 h-5 mr-2" />
+                  <MessageCircle className="w-4 h-4 md:w-5 md:h-5 mr-2 shrink-0" />
                   WhatsApp
                 </Button>
               </a>
@@ -752,9 +750,9 @@ export default function LandingPage() {
                 setIsTransitioning(false);
               }, 250);
             }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 hover:scale-110"
+            className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 p-2 md:p-3 rounded-full bg-white/10 md:bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 hover:scale-110 hidden sm:flex"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
           </button>
           <button
             onClick={() => {
@@ -764,9 +762,9 @@ export default function LandingPage() {
                 setIsTransitioning(false);
               }, 250);
             }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 hover:scale-110"
+            className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 p-2 md:p-3 rounded-full bg-white/10 md:bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all duration-300 hover:scale-110 hidden sm:flex"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
           </button>
         </div>
       </section>
@@ -969,15 +967,19 @@ export default function LandingPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="name" className="text-base font-semibold text-gray-900 mb-2 block">
-                        👤 Nom (optionnel)
+                        👤 Nom <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id="name"
                         placeholder="Votre nom"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
-                        className="h-12 rounded-xl"
+                        className={`h-12 rounded-xl ${customerName === '' && address ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+                        required
                       />
+                      {customerName === '' && address && (
+                        <p className="text-red-500 text-xs mt-1">Le nom est requis</p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="phone" className="text-base font-semibold text-gray-900 mb-2 block">
@@ -1044,12 +1046,32 @@ export default function LandingPage() {
 
                   <Button
                     onClick={handleBooking}
-                    disabled={!selectedDate || !selectedTime || !selectedService || !address || !phone || isLoading}
+                    disabled={!selectedDate || !selectedTime || !selectedService || !address || !phone || !customerName || isLoading}
                     className="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-xl py-7 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 disabled:opacity-50"
                   >
                     <MessageCircle className="w-6 h-6 mr-2" />
                     {isLoading ? "Envoi en cours..." : "Réserver"}
                   </Button>
+
+                  {/* Info tooltip */}
+                  <div className="flex justify-end mt-1">
+                    <div className="relative group inline-flex items-center gap-1.5 cursor-pointer">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-cyan-600 transition-colors focus:outline-none"
+                        onClick={(e) => { e.currentTarget.nextElementSibling?.classList.toggle('hidden'); }}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Service non listé ?</span>
+                      </button>
+                      {/* Tooltip — visible on hover (desktop) or tap (mobile) */}
+                      <div className="hidden group-hover:block absolute bottom-6 right-0 z-50 w-64 bg-gray-900 text-white text-xs rounded-xl p-3 shadow-xl leading-relaxed">
+                        <p className="font-semibold mb-1">💡 Astuce :</p>
+                        <p>Si votre besoin n&apos;est pas dans la liste, choisissez la rubrique la plus proche et décrivez votre demande dans la section <strong>Notes</strong>. Nous vous contacterons pour adapter le service.</p>
+                        <div className="absolute -bottom-1.5 right-4 w-3 h-3 bg-gray-900 rotate-45"></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -1235,24 +1257,34 @@ export default function LandingPage() {
               <p className="text-[#003366]/60 text-sm mt-1 text-justify">L'excellence de l'entretien ménager et automobile, directement à votre porte pour vous simplifier la vie.</p>
             </div>
 
-            {/* Nav links */}
-            <nav className="flex flex-wrap items-center justify-center gap-6">
-              {[
-                { label: 'Services', href: '#services' },
-                { label: 'Tarifs', href: '#packs' },
-                { label: 'Rendez-vous', href: '#booking' },
-                { label: 'Contact', href: '#contact' },
-              ].map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  onClick={(e) => handleNavClick(e, item.href)}
-                  className="text-[#003366]/80 hover:text-[#003366] font-medium text-sm transition-colors duration-200"
-                >
-                  {item.label}
-                </a>
-              ))}
-            </nav>
+            {/* Contact & Nav links */}
+            <div className="flex flex-col items-center gap-4">
+              <nav className="flex flex-wrap items-center justify-center gap-6">
+                {[
+                  { label: 'Services', href: '#services' },
+                  { label: 'Tarifs', href: '#packs' },
+                  { label: 'Rendez-vous', href: '#booking' },
+                  { label: 'Contact', href: '#contact' },
+                ].map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    onClick={(e) => handleNavClick(e, item.href)}
+                    className="text-[#003366]/80 hover:text-[#003366] font-medium text-sm transition-colors duration-200"
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </nav>
+              {/* Email visible */}
+              <a
+                href="mailto:contact@kmicare.ca"
+                className="inline-flex items-center gap-2 text-sm text-[#003366]/70 hover:text-cyan-600 transition-colors duration-200 group"
+              >
+                <Mail className="w-4 h-4 shrink-0 group-hover:text-cyan-600" />
+                <span className="font-medium">contact@kmicare.ca</span>
+              </a>
+            </div>
 
             {/* Social icons */}
             <div className="flex items-center justify-center md:justify-end gap-3">

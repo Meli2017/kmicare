@@ -14,18 +14,56 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KMI Home & Car Care | Nettoyage à Domicile Professionnel",
-  description: "Services de nettoyage professionnel à domicile pour maisons, appartements et véhicules. Lavage auto, nettoyage avant/après location, après chantier. Service 7j/7 à Montréal.",
-  keywords: ["nettoyage", "ménager", "lavage auto", "domicile", "Montréal", "KMI", "Home Care", "Car Care", "nettoyage professionnel"],
+  metadataBase: new URL('https://kmicare.ca'),
+  title: {
+    default: "KMI Home & Car Care | Nettoyage Professionnel à Domicile",
+    template: "%s | KMI Home & Car Care",
+  },
+  description: "Services de nettoyage professionnel à domicile pour maisons, appartements et véhicules. Lavage auto, nettoyage avant/après location, après chantier. Réservation en ligne 7j/7.",
+  keywords: ["nettoyage à domicile", "lavage auto", "nettoyage professionnel Montréal", "KMI Care", "Home Care", "Car Care", "ménage Montréal", "nettoyage voiture à domicile", "après chantier", "avant location"],
   authors: [{ name: "KMI Home & Car Care" }],
+  creator: "KMI Home & Car Care",
+  publisher: "KMI Home & Car Care",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    apple: '/favicon.png',
   },
   openGraph: {
-    title: "KMI Home & Car Care",
-    description: "Nettoyage professionnel à domicile - Maison & Voiture",
+    title: "KMI Home & Car Care | Nettoyage Professionnel",
+    description: "Réservez en ligne votre nettoyage à domicile — maison, voiture, après chantier. Service professionnel, partout à Montréal.",
     type: "website",
     locale: "fr_CA",
+    url: "https://kmicare.ca",
+    siteName: "KMI Home & Car Care",
+    images: [
+      {
+        url: "/favicon.png",
+        width: 512,
+        height: 512,
+        alt: "KMI Home & Car Care Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "KMI Home & Car Care",
+    description: "Nettoyage professionnel à domicile - Maison & Voiture",
+    images: ["/favicon.png"],
+  },
+  alternates: {
+    canonical: "https://kmicare.ca",
   },
 };
 
