@@ -82,8 +82,8 @@ export async function POST(request: NextRequest) {
       },
     });
     
-    // Envoyer l'email de notification (sans bloquer la réponse)
-    sendBookingNotification({
+    // Envoyer l'email de notification
+    await sendBookingNotification({
       service: serviceName || service,
       date,
       time,
@@ -134,7 +134,7 @@ export async function PUT(request: NextRequest) {
     
     // Envoyer un email au client si son email est renseigné et si le statut est confirmé ou annulé
     if (booking.email && (status === 'confirmed' || status === 'cancelled' || status === 'completed')) {
-      sendStatusUpdateEmail(booking.email, status, {
+      await sendStatusUpdateEmail(booking.email, status, {
         service: booking.serviceName || booking.service,
         date: booking.date,
         time: booking.time,
