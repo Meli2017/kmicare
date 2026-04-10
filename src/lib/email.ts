@@ -8,6 +8,10 @@ const transporter = nodemailer.createTransport({
     user: 'contact@kmicare.ca',
     pass: process.env.EMAIL_PASSWORD || '',
   },
+  // Timeouts pour éviter les processus bloqués indéfiniment
+  connectionTimeout: 10000, // 10 secondes pour se connecter
+  greetingTimeout: 10000,   // 10 secondes pour la poignée de main SMTP
+  socketTimeout: 15000,     // 15 secondes max pour l'envoi complet
 });
 
 interface BookingDetails {
