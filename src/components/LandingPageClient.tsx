@@ -469,13 +469,20 @@ export default function LandingPageClient({
         console.error('reCAPTCHA error:', recaptchaError);
       }
 
+      // Construction de la date en heure locale SANS passer par UTC
+      // (évite le décalage +/- 1 jour dû au fuseau horaire)
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const d = String(selectedDate.getDate()).padStart(2, '0');
+      const localDateStr = `${y}-${m}-${d}`;
+
       await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           service: selectedService,
           serviceName: selectedService,
-          date: format(selectedDate, 'yyyy-MM-dd'),
+          date: localDateStr,
           time: selectedTime,
           address,
           customerName,
