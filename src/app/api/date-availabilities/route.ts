@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { cookies } from 'next/headers';
 
-// GET - Fetch all date-specific availability slots (public)
-export async function GET() {
+// GET - Fetch date-specific availability slots
+// Par défaut : uniquement les dates à partir d'aujourd'hui (évite de charger 550+ entrées)
+// Param ?admin=true : charger tout (pour l'admin seulement)
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const isAdmin = searchParams.get('admin') === 'true';
+    const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+
     const slots = await db.dateAvailability.findMany({
+      where: isAdmin ? undefined : { date: { gte: today } },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      // Limiter à 90 jours de disponibilités pour le public
+      take: isAdmin ? undefined : 500,
     });
     return NextResponse.json(slots);
   } catch (error) {
