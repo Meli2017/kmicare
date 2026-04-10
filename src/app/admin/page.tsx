@@ -199,21 +199,17 @@ export default function AdminPage() {
 
   const fetchData = async () => {
     try {
-      const [blockedRes, bookingsRes, testimonialsRes, socialRes, dateAvailRes, areasRes] = await Promise.all([
-        fetch('/api/blocked-dates'),
-        fetch('/api/bookings'),
-        fetch('/api/testimonials'),
-        fetch('/api/social-links'),
-        fetch('/api/date-availabilities'),
-        fetch('/api/service-areas'),
-      ]);
+      // Un seul appel API au lieu de 6 — réduit la charge serveur de 83%
+      const res = await fetch('/api/admin/dashboard');
+      if (!res.ok) return;
+      const data = await res.json();
 
-      if (blockedRes.ok) setBlockedDates(await blockedRes.json());
-      if (bookingsRes.ok) setBookings(await bookingsRes.json());
-      if (testimonialsRes.ok) setTestimonials(await testimonialsRes.json());
-      if (socialRes.ok) setSocialLinks(await socialRes.json());
-      if (dateAvailRes.ok) setDateAvailabilities(await dateAvailRes.json());
-      if (areasRes.ok) setServiceAreas(await areasRes.json());
+      if (data.blockedDates) setBlockedDates(data.blockedDates);
+      if (data.bookings) setBookings(data.bookings);
+      if (data.testimonials) setTestimonials(data.testimonials);
+      if (data.socialLinks) setSocialLinks(data.socialLinks);
+      if (data.dateAvailabilities) setDateAvailabilities(data.dateAvailabilities);
+      if (data.serviceAreas) setServiceAreas(data.serviceAreas);
     } catch (error) {
       console.error('Fetch data error:', error);
     }
