@@ -160,6 +160,7 @@ export async function PUT(request: NextRequest) {
     // Envoyer un email au client si son email est renseigné et si le statut est confirmé ou annulé
     if (booking.email && (status === 'confirmed' || status === 'cancelled' || status === 'completed')) {
       await sendStatusUpdateEmail(booking.email, status, {
+        bookingNumber: booking.bookingNumber || undefined,
         service: booking.serviceName || booking.service,
         date: booking.date,
         time: booking.time,
