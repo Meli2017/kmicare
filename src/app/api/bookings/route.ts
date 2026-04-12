@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { cookies } from 'next/headers';
-import { sendBookingNotification, sendStatusUpdateEmail } from '@/lib/email';
+import { sendBookingNotification, sendStatusUpdateEmail, sendReviewInviteEmail } from '@/lib/email';
 
 // GET - Fetch all bookings (admin only)
 export async function GET(request: NextRequest) {
@@ -168,7 +168,34 @@ export async function PUT(request: NextRequest) {
         customerName: booking.customerName || undefined,
       }).catch(err => console.error('Status email failed:', err));
     }
-    
+
+    // Si service terminé + email présent → générer un lien unique de témoignage
+    if (status === 'completed' && booking.email) {
+      try {
+        const token = crypto.randomUUID() + '-' + crypto.randomUUID(); // 72 chars unique
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 jours
+
+        await db.testimonialToken.create({
+          data: {
+            token,
+            bookingId: booking.id,
+            customerName: booking.customerName || '',
+            customerEmail: booking.email,
+            expiresAt,
+          },
+        });
+
+        const reviewUrl = `https://kmicare.ca/review/${token}`;
+        await sendReviewInviteEmail(
+          booking.email,
+          booking.customerName || '',
+          reviewUrl
+        ).catch(err => console.error('Review invite email failed:', err));
+      } catch (err) {
+        console.error('Review token creation failed:', err);
+      }
+    }
+
     return NextResponse.json(booking);
   } catch (error) {
     console.error('Update booking error:', error);

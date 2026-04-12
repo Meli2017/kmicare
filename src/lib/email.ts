@@ -191,3 +191,72 @@ export async function sendStatusUpdateEmail(
     return false;
   }
 }
+
+// ─── Email d'invitation à laisser un témoignage ────────────────────────────
+export async function sendReviewInviteEmail(
+  clientEmail: string,
+  customerName: string,
+  reviewUrl: string
+) {
+  const firstName = customerName ? customerName.split(' ')[0] : 'cher(e) client(e)';
+
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 12px; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #003366, #0066cc); padding: 30px; text-align: center;">
+        <h1 style="color: white; margin: 0; font-size: 24px;">&#127968; KMI Home &amp; Car Care</h1>
+        <p style="color: #93c5fd; margin: 8px 0 0;">Merci pour votre confiance !</p>
+      </div>
+      <div style="padding: 30px;">
+        <div style="text-align: center; margin-bottom: 28px;">
+          <p style="font-size: 52px; margin: 0;">&#11088;</p>
+          <h2 style="color: #003366; margin: 12px 0 8px; font-size: 22px;">Bonjour ${firstName} !</h2>
+          <p style="color: #64748b; margin: 0; font-size: 16px; line-height: 1.6;">
+            Nous esp&eacute;rons que vous &ecirc;tes pleinement satisfait(e) de notre service.<br>
+            Votre avis compte &eacute;norm&eacute;ment pour nous et pour nos futurs clients !
+          </p>
+        </div>
+
+        <div style="background: white; border-radius: 12px; padding: 24px; border: 2px solid #e2e8f0; margin-bottom: 24px;">
+          <h3 style="color: #003366; margin: 0 0 12px; font-size: 16px; text-align: center;">&#128221; Laissez votre t&eacute;moignage</h3>
+          <p style="color: #64748b; margin: 0 0 20px; font-size: 14px; text-align: center;">
+            Cliquez sur le bouton ci-dessous pour partager votre exp&eacute;rience en moins de 2 minutes.
+          </p>
+          <div style="text-align: center;">
+            <a href="${reviewUrl}"
+               style="display: inline-block; background: linear-gradient(135deg, #003366, #0066cc); color: white; padding: 16px 36px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(0,51,102,0.3);">
+              &#11088; Laisser mon avis
+            </a>
+          </div>
+        </div>
+
+        <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 14px; margin-bottom: 20px;">
+          <p style="color: #92400e; margin: 0; font-size: 13px; text-align: center;">
+            &#8987; Ce lien est <strong>valable 30 jours</strong> et utilisable <strong>une seule fois</strong>.
+          </p>
+        </div>
+
+        <p style="color: #94a3b8; font-size: 13px; text-align: center; margin: 0;">
+          Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>
+          <span style="color: #0066cc; word-break: break-all;">${reviewUrl}</span>
+        </p>
+      </div>
+      <div style="background: #1e293b; padding: 20px; text-align: center;">
+        <p style="color: #94a3b8; margin: 0; font-size: 12px;">KMI Home &amp; Car Care &mdash; Nettoyage professionnel &agrave; domicile</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: '"KMI Home & Car Care" <contact@kmicare.ca>',
+      to: clientEmail,
+      subject: '⭐ Partagez votre expérience KMI Home & Car Care',
+      html: htmlContent,
+    });
+    console.log('Email invitation témoignage envoyé à ' + clientEmail);
+    return true;
+  } catch (error) {
+    console.error('Erreur envoi email invitation témoignage:', error);
+    return false;
+  }
+}

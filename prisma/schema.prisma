@@ -75,6 +75,7 @@ model Testimonial {
   message      String   // Testimonial text
   rating       Int      @default(5) // 1-5 stars
   isActive     Boolean  @default(true)
+  source       String   @default("admin") // "admin" | "client"
   order        Int      @default(0) // Display order
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -99,4 +100,17 @@ model ServiceArea {
   order     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// One-time tokens to invite clients to leave a testimonial
+model TestimonialToken {
+  id            String   @id @default(cuid())
+  token         String   @unique
+  bookingId     String
+  customerName  String?
+  customerEmail String
+  isUsed        Boolean  @default(false)
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

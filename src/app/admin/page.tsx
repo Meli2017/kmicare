@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -48,6 +48,7 @@ interface Testimonial {
   message: string;
   rating: number;
   isActive: boolean;
+  source: string;
   order: number;
 }
 
@@ -1249,12 +1250,22 @@ export default function AdminPage() {
                         }`}
                       >
                         <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-wrap">
                             <Switch
                               checked={testimonial.isActive}
                               onCheckedChange={() => toggleTestimonialActive(testimonial)}
                             />
                             <span className="font-semibold">{testimonial.customerName}</span>
+                            {testimonial.source === 'client' && !testimonial.isActive && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                                ⏳ Client · En attente de validation
+                              </span>
+                            )}
+                            {testimonial.source === 'client' && testimonial.isActive && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                ✓ Client · Publié
+                              </span>
+                            )}
                           </div>
                           <div className="flex gap-1">
                             {[...Array(5)].map((_, i) => (
