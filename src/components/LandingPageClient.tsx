@@ -305,6 +305,7 @@ export default function LandingPageClient({
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>(initialServiceAreas);
   const [isLoading, setIsLoading] = useState(false);
   const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false);
+  const [confirmedBookingNumber, setConfirmedBookingNumber] = useState<string>('');
   const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 
   // Carousel auto-play - infinite loop
@@ -476,7 +477,7 @@ export default function LandingPageClient({
       const d = String(selectedDate.getDate()).padStart(2, '0');
       const localDateStr = `${y}-${m}-${d}`;
 
-      await fetch('/api/bookings', {
+      const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -493,10 +494,17 @@ export default function LandingPageClient({
         }),
       });
 
+      // Capturer le numéro de demande retourné par l'API
+      const result = await res.json().catch(() => ({}));
+      const bookingNum = result?.bookingNumber || '';
+      setConfirmedBookingNumber(bookingNum);
+
       // Afficher le toast de succès
       toast({
         title: "✅ Réservation effectuée avec succès !",
-        description: `Votre rendez-vous pour « ${selectedService} » le ${format(selectedDate, 'EEEE d MMMM yyyy', { locale: fr })} à ${selectedTime} a bien été enregistré.`,
+        description: bookingNum
+          ? `N° ${bookingNum} — ${selectedService} le ${format(selectedDate, 'EEEE d MMMM yyyy', { locale: fr })} à ${selectedTime}`
+          : `Votre rendez-vous pour « ${selectedService} » le ${format(selectedDate, 'EEEE d MMMM yyyy', { locale: fr })} à ${selectedTime} a bien été enregistré.`,
       });
 
       // Ouvrir la dialog WhatsApp
@@ -1076,7 +1084,14 @@ export default function LandingPageClient({
             <DialogTitle className="text-2xl font-bold text-gray-900">
               Réservation confirmée ! 🎉
             </DialogTitle>
-            <DialogDescription className="text-base text-gray-600 mt-2">
+            {confirmedBookingNumber && (
+              <div className="mt-3 mx-auto bg-amber-50 border-2 border-amber-400 rounded-xl px-6 py-3">
+                <p className="text-xs text-amber-700 font-semibold uppercase tracking-widest mb-1">Votre numéro de demande</p>
+                <p className="text-2xl font-black text-amber-900 font-mono tracking-wider">{confirmedBookingNumber}</p>
+                <p className="text-xs text-amber-600 mt-1">Conservez ce numéro pour tout suivi</p>
+              </div>
+            )}
+            <DialogDescription className="text-base text-gray-600 mt-3">
               Votre réservation a bien été enregistrée. Voulez-vous envoyer un message WhatsApp à l&apos;équipe KMI pour confirmer les détails ?
             </DialogDescription>
           </DialogHeader>

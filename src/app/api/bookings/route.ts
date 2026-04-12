@@ -30,6 +30,19 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// ─── Génération du numéro de demande ───────────────────────────────────────
+// Format : KMI-YYYYMMDD-XXXX (ex: KMI-20260412-A3F9)
+// Caractères sans ambiguïté : pas de 0/O, 1/I
+function generateBookingNumber(date: string): string {
+  const datePart = date.replace(/-/g, ''); // "20260412"
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let suffix = '';
+  for (let i = 0; i < 4; i++) {
+    suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `KMI-${datePart}-${suffix}`;
+}
+
 // POST - Create new booking (public)
 export async function POST(request: NextRequest) {
   try {
@@ -66,9 +79,20 @@ export async function POST(request: NextRequest) {
         // Continuer sans bloquer en cas d'erreur de vérification
       }
     }
+
+    // Générer un numéro unique (réessaie en cas de collision rare)
+    let bookingNumber = generateBookingNumber(date);
+    let attempts = 0;
+    while (attempts < 5) {
+      const existing = await db.booking.findUnique({ where: { bookingNumber } });
+      if (!existing) break;
+      bookingNumber = generateBookingNumber(date);
+      attempts++;
+    }
     
     const booking = await db.booking.create({
       data: {
+        bookingNumber,
         service,
         serviceName,
         date,
@@ -84,6 +108,7 @@ export async function POST(request: NextRequest) {
     
     // Envoyer l'email de notification
     await sendBookingNotification({
+      bookingNumber,
       service: serviceName || service,
       date,
       time,

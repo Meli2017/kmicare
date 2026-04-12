@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -28,6 +28,7 @@ interface BlockedDate {
 
 interface Booking {
   id: string;
+  bookingNumber: string | null;
   service: string;
   serviceName: string;
   date: string;
@@ -130,6 +131,14 @@ export default function AdminPage() {
 
   // Booking deletion state
   const [bookingToDelete, setBookingToDelete] = useState<string | null>(null);
+
+  // === Recherche réservations ===
+  const [bookingSearch, setBookingSearch] = useState('');
+
+  // === Pagination + filtre créneaux ===
+  const [availPage, setAvailPage] = useState(1);
+  const [availSearch, setAvailSearch] = useState('');
+  const AVAIL_PER_PAGE = 10;
 
   // Check authentication on mount
   useEffect(() => {
@@ -802,78 +811,114 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Créneaux configurés ({dateAvailabilities.length})</CardTitle>
-                  <CardDescription>Disponibilités prévues pour des dates précises</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                    {dateAvailabilities
-                      .sort((a, b) => a.date.localeCompare(b.date))
-                      .map(slot => {
-                        // Parse sans UTC pour éviter le décalage de fuseau horaire
-                        const [sy, sm, sd] = slot.date.split('-').map(Number);
-                        const d = new Date(sy, sm - 1, sd);
-                        const today = new Date(); today.setHours(0,0,0,0);
-                        const isPast = d < today;
-                        return (
-                          <div
-                            key={slot.id}
-                            className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                              isPast ? 'bg-gray-50 border-gray-200 opacity-60' :
-                              slot.isActive ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <Switch
-                                checked={slot.isActive}
-                                onCheckedChange={() => toggleDateAvailability(slot)}
-                                disabled={isPast}
-                              />
-                              <div className="min-w-0">
-                                <p className={`font-medium text-sm ${
-                                  slot.isActive && !isPast ? 'text-gray-900' : 'text-gray-400'
-                                }`}>
-                                  {d.toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                                </p>
-                                <p className="text-xs text-gray-500">{slot.startTime} – {slot.endTime}</p>
+            {/* Liste des créneaux avec filtre + pagination */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Créneaux configurés ({dateAvailabilities.length})</CardTitle>
+                <CardDescription>Disponibilités prévues pour des dates précises</CardDescription>
+                {/* Filtre */}
+                <Input
+                  placeholder="Filtrer : 2026-04-12, 2026-04, 2026..."
+                  value={availSearch}
+                  onChange={(e) => { setAvailSearch(e.target.value); setAvailPage(1); }}
+                  className="mt-2"
+                />
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const filtered = dateAvailabilities
+                    .filter(s => s.date.includes(availSearch.trim()))
+                    .sort((a, b) => a.date.localeCompare(b.date));
+                  const totalPages = Math.max(1, Math.ceil(filtered.length / AVAIL_PER_PAGE));
+                  const paginated = filtered.slice((availPage - 1) * AVAIL_PER_PAGE, availPage * AVAIL_PER_PAGE);
+                  return (
+                    <>
+                      <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                        {paginated.map(slot => {
+                          const [sy, sm, sd] = slot.date.split('-').map(Number);
+                          const d = new Date(sy, sm - 1, sd);
+                          const today = new Date(); today.setHours(0,0,0,0);
+                          const isPast = d < today;
+                          return (
+                            <div
+                              key={slot.id}
+                              className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                                isPast ? 'bg-gray-50 border-gray-200 opacity-60' :
+                                slot.isActive ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <Switch
+                                  checked={slot.isActive}
+                                  onCheckedChange={() => toggleDateAvailability(slot)}
+                                  disabled={isPast}
+                                />
+                                <div className="min-w-0">
+                                  <p className={`font-medium text-sm ${
+                                    slot.isActive && !isPast ? 'text-gray-900' : 'text-gray-400'
+                                  }`}>
+                                    {d.toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{slot.startTime} – {slot.endTime}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 ml-2 shrink-0">
+                                {isPast ? (
+                                  <Badge variant="secondary" className="text-xs">Passé</Badge>
+                                ) : (
+                                  <Badge
+                                    className={slot.isActive ? 'bg-green-500 text-xs' : 'text-xs'}
+                                    variant={slot.isActive ? 'default' : 'secondary'}
+                                  >
+                                    {slot.isActive ? 'Actif' : 'Inactif'}
+                                  </Badge>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteDateAvailability(slot.id)}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 ml-2 shrink-0">
-                              {isPast ? (
-                                <Badge variant="secondary" className="text-xs">Passé</Badge>
-                              ) : (
-                                <Badge
-                                  className={slot.isActive ? 'bg-green-500 text-xs' : 'text-xs'}
-                                  variant={slot.isActive ? 'default' : 'secondary'}
-                                >
-                                  {slot.isActive ? 'Actif' : 'Inactif'}
-                                </Badge>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => deleteDateAvailability(slot.id)}
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
+                          );
+                        })}
+                        {paginated.length === 0 && (
+                          <div className="text-center text-gray-500 py-8">
+                            <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                            <p>{availSearch ? 'Aucun créneau correspondant' : 'Aucun créneau configuré'}</p>
                           </div>
-                        );
-                      })
-                    }
-                    {dateAvailabilities.length === 0 && (
-                      <div className="text-center text-gray-500 py-8">
-                        <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p>Aucun créneau configuré</p>
-                        <p className="text-xs mt-1">Ajoutez des disponibilités ci-contre</p>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      {/* Pagination */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                          <Button
+                            variant="outline" size="sm"
+                            onClick={() => setAvailPage(p => Math.max(1, p - 1))}
+                            disabled={availPage === 1}
+                          >
+                            ← Précédent
+                          </Button>
+                          <span className="text-sm text-gray-500">
+                            Page {availPage} / {totalPages} ({filtered.length} créneaux)
+                          </span>
+                          <Button
+                            variant="outline" size="sm"
+                            onClick={() => setAvailPage(p => Math.min(totalPages, p + 1))}
+                            disabled={availPage === totalPages}
+                          >
+                            Suivant →
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </CardContent>
+            </Card>
             </div>
           </TabsContent>
 
@@ -964,10 +1009,27 @@ export default function AdminPage() {
                   <CheckCircle className="w-5 h-5 text-purple-600" />
                   Demandes de rendez-vous
                 </CardTitle>
+                {/* Barre de recherche */}
+                <Input
+                  placeholder="Rechercher par N° (KMI-...), nom, ou date (2026-04-12, 2026-04, 2026)"
+                  value={bookingSearch}
+                  onChange={(e) => setBookingSearch(e.target.value)}
+                  className="mt-2"
+                />
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {bookings.map(booking => (
+                  {(() => {
+                    const q = bookingSearch.trim().toLowerCase();
+                    const filtered = bookings.filter(b =>
+                      !q ||
+                      (b.bookingNumber || '').toLowerCase().includes(q) ||
+                      (b.customerName || '').toLowerCase().includes(q) ||
+                      b.date.includes(q)
+                    );
+                    return (
+                      <>
+                        {filtered.map(booking => (
                     <div
                       key={booking.id}
                       className="p-4 rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow"
@@ -975,6 +1037,11 @@ export default function AdminPage() {
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
+                            {booking.bookingNumber && (
+                              <span className="font-mono text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded border border-amber-300">
+                                {booking.bookingNumber}
+                              </span>
+                            )}
                             <Badge variant="outline" className="text-cyan-600 border-cyan-600">
                               {booking.serviceName}
                             </Badge>
@@ -1068,14 +1135,17 @@ export default function AdminPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
-                  
-                  {bookings.length === 0 && (
-                    <div className="text-center text-gray-500 py-12">
-                      <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>Aucune demande de rendez-vous</p>
-                    </div>
-                  )}
+                        ))}
+
+                        {filtered.length === 0 && (
+                          <div className="text-center text-gray-500 py-12">
+                            <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                            <p>{bookingSearch ? 'Aucune réservation correspondante' : 'Aucune demande de rendez-vous'}</p>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </CardContent>
             </Card>

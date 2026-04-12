@@ -52,19 +52,20 @@ model DateAvailability {
 
 // Bookings made by visitors
 model Booking {
-  id           String   @id @default(cuid())
-  service      String   // Service name
-  serviceName  String   // Display name of service
-  date         String   // Format: "YYYY-MM-DD"
-  time         String   // Format: "HH:MM"
-  address      String   // Customer address
-  customerName String?  // Optional customer name
-  email        String?
-  phone        String?  // Optional customer phone
-  status       String   @default("pending") // pending, confirmed, completed, cancelled
-  notes        String?  // Additional notes
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  bookingNumber String?  @unique // Format: "KMI-YYYYMMDD-XXXX"
+  service       String   // Service name
+  serviceName   String   // Display name of service
+  date          String   // Format: "YYYY-MM-DD"
+  time          String   // Format: "HH:MM"
+  address       String   // Customer address
+  customerName  String?  // Optional customer name
+  email         String?
+  phone         String?  // Optional customer phone
+  status        String   @default("pending") // pending, confirmed, completed, cancelled
+  notes         String?  // Additional notes
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // Testimonials managed by admin

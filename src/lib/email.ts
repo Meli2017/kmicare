@@ -15,6 +15,7 @@ const transporter = nodemailer.createTransport({
 });
 
 interface BookingDetails {
+  bookingNumber?: string;
   service: string;
   date: string;
   time: string;
@@ -25,6 +26,7 @@ interface BookingDetails {
   notes?: string;
 }
 
+
 export async function sendBookingNotification(booking: BookingDetails) {
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 12px; overflow: hidden;">
@@ -33,6 +35,11 @@ export async function sendBookingNotification(booking: BookingDetails) {
         <p style="color: #93c5fd; margin: 8px 0 0;">Nouvelle r&eacute;servation re&ccedil;ue !</p>
       </div>
       <div style="padding: 30px;">
+        ${booking.bookingNumber ? `
+        <div style="background: #fffbeb; border: 2px solid #f59e0b; border-radius: 10px; padding: 16px; text-align: center; margin-bottom: 20px;">
+          <p style="color: #92400e; margin: 0 0 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Num&eacute;ro de demande</p>
+          <p style="color: #78350f; margin: 0; font-size: 26px; font-weight: 900; font-family: monospace; letter-spacing: 2px;">${booking.bookingNumber}</p>
+        </div>` : ''}
         <div style="background: white; border-radius: 8px; padding: 20px; margin-bottom: 16px; border-left: 4px solid #22c55e;">
           <h2 style="color: #003366; margin: 0 0 16px; font-size: 18px;">&#128203; D&eacute;tails de la r&eacute;servation</h2>
           <table style="width: 100%; border-collapse: collapse;">
@@ -62,6 +69,7 @@ export async function sendBookingNotification(booking: BookingDetails) {
     </div>
   `;
 
+
   try {
     await transporter.sendMail({
       from: '"KMI Home & Car Care" <contact@kmicare.ca>',
@@ -87,7 +95,7 @@ function isValidEmail(email: string): boolean {
 export async function sendStatusUpdateEmail(
   clientEmail: string,
   status: 'confirmed' | 'cancelled' | 'completed',
-  booking: { service: string; date: string; time: string; address: string; customerName?: string }
+  booking: { bookingNumber?: string; service: string; date: string; time: string; address: string; customerName?: string }
 ) {
   if (!clientEmail || !isValidEmail(clientEmail)) {
     console.log('Email non envoye: adresse invalide ou absente (' + (clientEmail || 'vide') + ')');
@@ -152,11 +160,13 @@ export async function sendStatusUpdateEmail(
         <div style="background: white; border-radius: 8px; padding: 20px; border-left: 4px solid ${statusColor};">
           <h3 style="color: #003366; margin: 0 0 16px; font-size: 16px;">&#128203; ${detailsTitle}</h3>
           <table style="width: 100%; border-collapse: collapse;">
+            ${booking.bookingNumber ? `<tr><td style="padding: 8px 0; color: #64748b; font-weight: 600; width: 120px;">&#128203; N&deg; demande :</td><td style="padding: 8px 0; color: #1e293b; font-family: monospace; font-weight: bold;">${booking.bookingNumber}</td></tr>` : ''}
             <tr><td style="padding: 8px 0; color: #64748b; font-weight: 600; width: 120px;">&#129529; Service :</td><td style="padding: 8px 0; color: #1e293b;">${booking.service}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b; font-weight: 600;">&#128197; Date :</td><td style="padding: 8px 0; color: #1e293b;">${booking.date}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b; font-weight: 600;">&#128336; Heure :</td><td style="padding: 8px 0; color: #1e293b;">${booking.time}</td></tr>
             <tr><td style="padding: 8px 0; color: #64748b; font-weight: 600;">&#128205; Adresse :</td><td style="padding: 8px 0; color: #1e293b;">${booking.address}</td></tr>
           </table>
+
         </div>
         ${bottomSection}
       </div>
