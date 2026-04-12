@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         });
         const recaptchaData = await recaptchaRes.json();
 
-        if (!recaptchaData.success || recaptchaData.score < 0.3) {
+        if (!recaptchaData.success || recaptchaData.score < 0.1) {
           console.log('reCAPTCHA blocked:', recaptchaData);
           return NextResponse.json(
             { error: 'Verification anti-bot echouee. Veuillez reessayer.' },

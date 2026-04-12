@@ -868,6 +868,7 @@ export default function LandingPageClient({
                       onSelect={setSelectedDate}
                       disabled={[date => !isDateAvailable(date)]}
                       locale={fr}
+                      weekStartsOn={0}
                       className="rounded-2xl border shadow-md"
                     />
                   </div>

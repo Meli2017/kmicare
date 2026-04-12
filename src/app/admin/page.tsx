@@ -812,8 +812,11 @@ export default function AdminPage() {
                     {dateAvailabilities
                       .sort((a, b) => a.date.localeCompare(b.date))
                       .map(slot => {
-                        const d = new Date(slot.date + 'T00:00');
-                        const isPast = d < new Date(new Date().toDateString());
+                        // Parse sans UTC pour éviter le décalage de fuseau horaire
+                        const [sy, sm, sd] = slot.date.split('-').map(Number);
+                        const d = new Date(sy, sm - 1, sd);
+                        const today = new Date(); today.setHours(0,0,0,0);
+                        const isPast = d < today;
                         return (
                           <div
                             key={slot.id}
@@ -924,12 +927,7 @@ export default function AdminPage() {
                       >
                         <div>
                           <p className="font-medium text-gray-900">
-                            {new Date(blocked.date).toLocaleDateString('fr-CA', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
+                            {(() => { const [by, bm, bd] = blocked.date.split('-').map(Number); return new Date(by, bm - 1, bd).toLocaleDateString('fr-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); })()}
                           </p>
                           {blocked.reason && (
                             <p className="text-sm text-gray-500">{blocked.reason}</p>
@@ -996,7 +994,7 @@ export default function AdminPage() {
                           <div className="flex items-center gap-4 text-sm text-gray-600">
                             <span className="flex items-center gap-1">
                               <Calendar className="w-4 h-4" />
-                              {new Date(booking.date).toLocaleDateString('fr-CA')}
+                              {(() => { const [by, bm, bd] = booking.date.split('-').map(Number); return new Date(by, bm - 1, bd).toLocaleDateString('fr-CA'); })()}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="w-4 h-4" />
