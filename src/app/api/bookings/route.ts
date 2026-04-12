@@ -172,7 +172,7 @@ export async function PUT(request: NextRequest) {
     // Si service terminé + email présent → générer un lien unique de témoignage
     if (status === 'completed' && booking.email) {
       try {
-        const token = crypto.randomUUID() + '-' + crypto.randomUUID(); // 72 chars unique
+        const token = crypto.randomUUID(); // 36 chars, unique, fits in VARCHAR(64)
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 jours
 
         await db.testimonialToken.create({
