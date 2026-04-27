@@ -39,6 +39,31 @@ interface Booking {
   phone: string | null;
   status: string;
   notes: string | null;
+  endDate?: string | null;
+  endTime?: string | null;
+  source?: string;
+  invoices?: Invoice[];
+  createdAt: string;
+}
+
+interface InvoiceItem {
+  id: string;
+  description: string;
+  amount: number;
+  quantity: number;
+}
+
+interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  bookingId: string;
+  clientName: string;
+  clientEmail: string;
+  totalAmount: number;
+  status: string;
+  issueDate: string;
+  notes: string | null;
+  items: InvoiceItem[];
   createdAt: string;
 }
 
@@ -99,6 +124,7 @@ export default function AdminPage() {
   // Data state
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
@@ -129,6 +155,37 @@ export default function AdminPage() {
   const [newServiceArea, setNewServiceArea] = useState('');
   // Drag state
   const [draggedAreaId, setDraggedAreaId] = useState<string | null>(null);
+
+  // Admin booking state
+  const [isAdminBookingOpen, setIsAdminBookingOpen] = useState(false);
+  const [adminBookingForm, setAdminBookingForm] = useState({
+    service: '',
+    address: '',
+    customerName: '',
+    phone: '',
+    email: '',
+    date: '',
+    endDate: '',
+    time: '',
+    endTime: ''
+  });
+  
+  // Invoice generation state
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
+  const [showInvoiceErrors, setShowInvoiceErrors] = useState(false);
+  const [currentInvoiceBooking, setCurrentInvoiceBooking] = useState<Booking | null>(null);
+  
+  // View invoice state
+  const [isViewInvoiceOpen, setIsViewInvoiceOpen] = useState(false);
+  const [viewInvoiceData, setViewInvoiceData] = useState<Invoice | null>(null);
+  const [invoiceForm, setInvoiceForm] = useState({
+    validateTimes: false,
+    startTime: '',
+    endTime: '',
+    issueDate: new Date().toISOString().split('T')[0],
+    notes: '',
+    items: [{ description: '', amount: 0, quantity: 1 }]
+  });
 
   // Booking deletion state
   const [bookingToDelete, setBookingToDelete] = useState<string | null>(null);
@@ -216,6 +273,7 @@ export default function AdminPage() {
 
       if (data.blockedDates) setBlockedDates(data.blockedDates);
       if (data.bookings) setBookings(data.bookings);
+      if (data.invoices) setInvoices(data.invoices);
       if (data.testimonials) setTestimonials(data.testimonials);
       if (data.socialLinks) setSocialLinks(data.socialLinks);
       if (data.dateAvailabilities) setDateAvailabilities(data.dateAvailabilities);
@@ -329,6 +387,85 @@ export default function AdminPage() {
   };
 
   // Booking functions
+
+  const handleAdminBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/bookings/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...adminBookingForm,
+          serviceName: adminBookingForm.service
+        })
+      });
+      if (res.ok) {
+        const newBooking = await res.json();
+        setBookings([newBooking, ...bookings]);
+        setIsAdminBookingOpen(false);
+        setAdminBookingForm({
+          service: '', address: '', customerName: '', phone: '', email: '', date: '', endDate: '', time: '', endTime: ''
+        });
+        toast({ title: "Réservation créée", description: "Le rendez-vous a été ajouté avec succès." });
+      } else {
+        toast({ title: "Erreur", description: "Impossible de créer la réservation.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  
+  const handleInvoiceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowInvoiceErrors(true);
+
+    const hasErrors = invoiceForm.items.some(item => !item.description.trim() || item.amount === 0 || item.amount === '' as any);
+    if (hasErrors) return;
+
+    if (!currentInvoiceBooking) return;
+    try {
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: currentInvoiceBooking.id,
+          clientName: currentInvoiceBooking.customerName || 'Client',
+          clientEmail: currentInvoiceBooking.email,
+          issueDate: invoiceForm.issueDate,
+          notes: invoiceForm.notes,
+          items: invoiceForm.items
+        })
+      });
+      if (res.ok) {
+        const newInvoice = await res.json();
+        setInvoices([newInvoice, ...invoices]);
+        setBookings(bookings.map(b => b.id === currentInvoiceBooking.id ? { ...b, invoices: [newInvoice] } : b));
+        setIsInvoiceOpen(false);
+        toast({ title: "Facture générée", description: "La facture a été créée." });
+      } else {
+        toast({ title: "Erreur", description: "Impossible de générer la facture.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const sendInvoice = async (invoiceId: string) => {
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/send`, { method: 'POST' });
+      if (res.ok) {
+        const updatedInvoice = await res.json();
+        setInvoices(invoices.map(i => i.id === invoiceId ? updatedInvoice : i));
+        toast({ title: "Facture envoyée", description: "L'email a été envoyé au client." });
+      } else {
+        toast({ title: "Erreur", description: "Échec de l'envoi de la facture.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const updateBookingStatus = async (id: string, status: string) => {
     try {
       const res = await fetch('/api/bookings', {
@@ -750,6 +887,10 @@ export default function AdminPage() {
               <CheckCircle className="w-4 h-4" />
               Réservations
             </TabsTrigger>
+            <TabsTrigger value="invoices" className="gap-2 rounded-lg data-[state=active]:bg-cyan-600 data-[state=active]:text-white">
+              <span className="text-lg">💰</span>
+              Factures
+            </TabsTrigger>
             <TabsTrigger value="testimonials" className="gap-2 rounded-lg data-[state=active]:bg-cyan-600 data-[state=active]:text-white">
               <Star className="w-4 h-4" />
               Témoignages
@@ -1005,18 +1146,28 @@ export default function AdminPage() {
           {/* Bookings Tab */}
           <TabsContent value="bookings">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-purple-600" />
-                  Demandes de rendez-vous
-                </CardTitle>
-                {/* Barre de recherche */}
-                <Input
-                  placeholder="Rechercher par N° (KMI-...), nom, ou date (2026-04-12, 2026-04, 2026)"
-                  value={bookingSearch}
-                  onChange={(e) => setBookingSearch(e.target.value)}
-                  className="mt-2"
-                />
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-purple-600" />
+                    Demandes de rendez-vous
+                  </CardTitle>
+                  <CardDescription>
+                    Gérez et ajoutez de nouvelles demandes
+                  </CardDescription>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <Button onClick={() => setIsAdminBookingOpen(true)} className="bg-cyan-600 hover:bg-cyan-700 text-white">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nouvelle Réservation
+                  </Button>
+                  <Input
+                    placeholder="Rechercher par N° (KMI-...), nom, ou date"
+                    value={bookingSearch}
+                    onChange={(e) => setBookingSearch(e.target.value)}
+                    className="w-[300px]"
+                  />
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -1124,6 +1275,23 @@ export default function AdminPage() {
                               Marquer terminé
                             </Button>
                           )}
+                          {booking.status === 'completed' && (!booking.invoices || booking.invoices.length === 0) && (
+                            <Button size="sm" onClick={() => {
+                              setCurrentInvoiceBooking(booking);
+                              setInvoiceForm(prev => ({
+                                ...prev,
+                                items: [{ description: booking.serviceName || booking.service, amount: 0, quantity: 1 }]
+                              }));
+                              setIsInvoiceOpen(true);
+                            }} className="bg-purple-600 hover:bg-purple-700 text-white">
+                              <span className="mr-1">💰</span> Générer facture
+                            </Button>
+                          )}
+                          {booking.status === 'completed' && booking.invoices && booking.invoices.length > 0 && (
+                            <Button size="sm" onClick={() => sendInvoice(booking.invoices![0].id)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                              📧 Envoyer facture
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1152,6 +1320,296 @@ export default function AdminPage() {
             </Card>
           </TabsContent>
 
+          {/* Modal Nouvelle Réservation (Admin) */}
+          <AlertDialog open={isAdminBookingOpen} onOpenChange={setIsAdminBookingOpen}>
+            <AlertDialogContent className="max-w-xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Créer une nouvelle réservation</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Enregistrez manuellement une demande de client.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <form onSubmit={handleAdminBookingSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Service souhaité *</Label>
+                    <Select value={adminBookingForm.service} onValueChange={(val) => setAdminBookingForm({ ...adminBookingForm, service: val })} required>
+                      <SelectTrigger><SelectValue placeholder="Choisir un service" /></SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        <SelectItem value="Pack populaire">Pack populaire</SelectItem>
+                        <SelectItem value="Pack Déménagement">Pack Déménagement</SelectItem>
+                        <SelectItem value="Pack Premium">Pack Premium</SelectItem>
+
+                        <div className="px-2 py-1.5 text-sm font-semibold text-gray-500 mt-2">Ménage résidentiel</div>
+                        <SelectItem value="Nettoyage complet">Nettoyage complet</SelectItem>
+                        <SelectItem value="Dépoussiérage">Dépoussiérage</SelectItem>
+                        <SelectItem value="Lavage des sols">Lavage des sols</SelectItem>
+                        <SelectItem value="Désinfection surfaces">Désinfection surfaces</SelectItem>
+                        <SelectItem value="Nettoyage électroménagers">Nettoyage électroménagers</SelectItem>
+
+                        <div className="px-2 py-1.5 text-sm font-semibold text-gray-500 mt-2">Avant / après location</div>
+                        <SelectItem value="Remise à neuf">Remise à neuf</SelectItem>
+                        <SelectItem value="Nettoyage après départ">Nettoyage après départ</SelectItem>
+                        <SelectItem value="Désinfection complète">Désinfection complète</SelectItem>
+                        <SelectItem value="Cuisine + salle de bain">Cuisine + salle de bain</SelectItem>
+
+                        <div className="px-2 py-1.5 text-sm font-semibold text-gray-500 mt-2">Après chantier</div>
+                        <SelectItem value="Enlèvement poussière lourde">Enlèvement poussière lourde</SelectItem>
+                        <SelectItem value="Traces de peinture/ciment">Traces de peinture/ciment</SelectItem>
+                        <SelectItem value="Lavage vitres (chantier)">Lavage vitres</SelectItem>
+                        <SelectItem value="Sols et surfaces (chantier)">Sols et surfaces</SelectItem>
+
+                        <div className="px-2 py-1.5 text-sm font-semibold text-gray-500 mt-2">Lavage automobile</div>
+                        <SelectItem value="Lavage extérieur complet">Lavage extérieur complet</SelectItem>
+                        <SelectItem value="Nettoyage intérieur auto">Nettoyage intérieur</SelectItem>
+                        <SelectItem value="Nettoyage tableau de bord">Nettoyage tableau de bord</SelectItem>
+                        <SelectItem value="Désodorisation auto">Désodorisation</SelectItem>
+                        <SelectItem value="Shampoing sièges">Shampoing sièges</SelectItem>
+                        <SelectItem value="Traitement des taches auto">Traitement des taches</SelectItem>
+                        <SelectItem value="Rénovation plastique intérieur">Rénovation plastique intérieur</SelectItem>
+                        <SelectItem value="Finition brillante extérieure">Finition brillante extérieure</SelectItem>
+
+                        <div className="px-2 py-1.5 text-sm font-semibold text-gray-500 mt-2">Services supplémentaires</div>
+                        <SelectItem value="Nettoyage vitres">Nettoyage vitres</SelectItem>
+                        <SelectItem value="Nettoyage tapis et moquettes">Nettoyage tapis et moquettes</SelectItem>
+                        <SelectItem value="Nettoyage canapé">Nettoyage canapé</SelectItem>
+                        <SelectItem value="Désinfection anti-bactérien">Désinfection anti-bactérien</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Adresse complète *</Label>
+                    <Input required value={adminBookingForm.address} onChange={(e) => setAdminBookingForm({...adminBookingForm, address: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Nom *</Label>
+                    <Input required value={adminBookingForm.customerName} onChange={(e) => setAdminBookingForm({...adminBookingForm, customerName: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Téléphone *</Label>
+                    <Input required value={adminBookingForm.phone} onChange={(e) => setAdminBookingForm({...adminBookingForm, phone: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Adresse mail (optionnel mais requis pour facture)</Label>
+                    <Input type="email" value={adminBookingForm.email} onChange={(e) => setAdminBookingForm({...adminBookingForm, email: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Date *</Label>
+                    <Input required type="date" value={adminBookingForm.date} onChange={(e) => setAdminBookingForm({...adminBookingForm, date: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Heure de début *</Label>
+                    <Input required type="time" value={adminBookingForm.time} onChange={(e) => setAdminBookingForm({...adminBookingForm, time: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Heure de fin *</Label>
+                    <Input required type="time" value={adminBookingForm.endTime} onChange={(e) => setAdminBookingForm({...adminBookingForm, endTime: e.target.value})} />
+                  </div>
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel type="button">Annuler</AlertDialogCancel>
+                  <Button type="submit" className="bg-cyan-600 hover:bg-cyan-700">Enregistrer</Button>
+                </AlertDialogFooter>
+              </form>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Modal Générer Facture */}
+          <AlertDialog open={isInvoiceOpen} onOpenChange={(open) => {
+            setIsInvoiceOpen(open);
+            if (!open) setShowInvoiceErrors(false);
+          }}>
+            <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Générer une facture</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Créez une facture pour la réservation {currentInvoiceBooking?.bookingNumber}.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <form onSubmit={handleInvoiceSubmit} className="space-y-6">
+                <div className="flex items-center space-x-2">
+                  <Switch id="validate-times" checked={invoiceForm.validateTimes} onCheckedChange={(c) => {
+                    setInvoiceForm({
+                      ...invoiceForm,
+                      validateTimes: c,
+                      startTime: c ? (currentInvoiceBooking?.time || '') : '',
+                      endTime: c ? (currentInvoiceBooking?.endTime || '') : ''
+                    });
+                  }} />
+                  <Label htmlFor="validate-times">Valider si les heures sont correctes</Label>
+                </div>
+                
+                {invoiceForm.validateTimes && (
+                  <div className="grid grid-cols-2 gap-4 border p-4 rounded-md">
+                    <div className="space-y-2">
+                      <Label>Heure de début</Label>
+                      <Input type="time" value={invoiceForm.startTime} onChange={(e) => setInvoiceForm({...invoiceForm, startTime: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Heure de fin</Label>
+                      <Input type="time" value={invoiceForm.endTime} onChange={(e) => setInvoiceForm({...invoiceForm, endTime: e.target.value})} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-4 border-t pt-4">
+                  <Label className="text-lg font-bold">Services facturés</Label>
+                  {invoiceForm.items.map((item, index) => (
+                    <div key={index} className="flex items-end gap-2">
+                      <div className="flex-1 space-y-2">
+                        <Label>Description <span className="text-red-500">*</span></Label>
+                        <Input required value={item.description} onChange={(e) => {
+                          const newItems = [...invoiceForm.items];
+                          newItems[index].description = e.target.value;
+                          setInvoiceForm({...invoiceForm, items: newItems});
+                        }} placeholder="Ex: Lavage complet" className={showInvoiceErrors && !item.description.trim() ? "border-red-500" : ""} />
+                        {showInvoiceErrors && !item.description.trim() && (
+                          <p className="text-xs text-red-500">Ce champ est requis.</p>
+                        )}
+                      </div>
+                      <div className="w-24 space-y-2">
+                        <Label>Montant ($) <span className="text-red-500">*</span></Label>
+                        <Input required type="number" step="0.01" min="0" value={item.amount === 0 ? '' : item.amount} onChange={(e) => {
+                          const newItems = [...invoiceForm.items];
+                          newItems[index].amount = e.target.value === '' ? '' as any : (parseFloat(e.target.value) || 0);
+                          setInvoiceForm({...invoiceForm, items: newItems});
+                        }} className={showInvoiceErrors && (!item.amount || item.amount === 0 || item.amount === '' as any) ? "border-red-500" : ""} />
+                        {showInvoiceErrors && (!item.amount || item.amount === 0 || item.amount === '' as any) && (
+                          <p className="text-xs text-red-500">Requis.</p>
+                        )}
+                      </div>
+                      <div className="w-20 space-y-2">
+                        <Label>Qté</Label>
+                        <Input required type="number" min="1" value={item.quantity} onChange={(e) => {
+                          const newItems = [...invoiceForm.items];
+                          newItems[index].quantity = parseInt(e.target.value) || 1;
+                          setInvoiceForm({...invoiceForm, items: newItems});
+                        }} />
+                      </div>
+                      {invoiceForm.items.length > 1 && (
+                        <Button type="button" variant="destructive" size="icon" onClick={() => {
+                          const newItems = invoiceForm.items.filter((_, i) => i !== index);
+                          setInvoiceForm({...invoiceForm, items: newItems});
+                        }}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" onClick={() => {
+                    setInvoiceForm({...invoiceForm, items: [...invoiceForm.items, {description: '', amount: 0, quantity: 1}]});
+                  }}>
+                    <Plus className="w-4 h-4 mr-2" /> Ajouter un service
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                  <div className="space-y-2">
+                    <Label>Date d'envoi / d'émission</Label>
+                    <Input required type="date" value={invoiceForm.issueDate} onChange={(e) => setInvoiceForm({...invoiceForm, issueDate: e.target.value})} />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Notes supplémentaires (optionnel)</Label>
+                  <Textarea value={invoiceForm.notes} onChange={(e) => setInvoiceForm({...invoiceForm, notes: e.target.value})} placeholder="Merci pour votre confiance !" />
+                </div>
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel type="button" className="cursor-pointer">Annuler</AlertDialogCancel>
+                  <Button type="submit" className="bg-cyan-600 hover:bg-cyan-700 cursor-pointer text-white">Confirmer la génération</Button>
+                </AlertDialogFooter>
+              </form>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Modal Visualiser Facture */}
+          <AlertDialog open={isViewInvoiceOpen} onOpenChange={setIsViewInvoiceOpen}>
+            <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Facture {viewInvoiceData?.invoiceNumber}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Détails de la facture (Lecture seule)
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              
+              {viewInvoiceData && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500">Date d'émission</p>
+                      <p className="font-semibold">{viewInvoiceData.issueDate}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Statut</p>
+                      <Badge className={
+                        viewInvoiceData.status === 'sent' ? 'bg-green-500' :
+                        viewInvoiceData.status === 'paid' ? 'bg-purple-500' :
+                        'bg-yellow-500'
+                      }>
+                        {viewInvoiceData.status === 'sent' ? 'Envoyée' : viewInvoiceData.status === 'paid' ? 'Payée' : 'Générée'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Client</p>
+                      <p className="font-semibold">{viewInvoiceData.clientName}</p>
+                      <p className="text-gray-600">{viewInvoiceData.clientEmail}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Réservation associée</p>
+                      <p className="font-mono text-xs">{viewInvoiceData.bookingId}</p>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-gray-50 text-gray-700">
+                        <tr>
+                          <th className="px-4 py-2">Description</th>
+                          <th className="px-4 py-2 text-center">Qté</th>
+                          <th className="px-4 py-2 text-right">Prix Unitaire</th>
+                          <th className="px-4 py-2 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewInvoiceData.items.map((item) => (
+                          <tr key={item.id} className="border-t">
+                            <td className="px-4 py-2">{item.description}</td>
+                            <td className="px-4 py-2 text-center">{item.quantity}</td>
+                            <td className="px-4 py-2 text-right">{item.amount.toFixed(2)} $</td>
+                            <td className="px-4 py-2 text-right font-medium">{(item.amount * item.quantity).toFixed(2)} $</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-gray-50 border-t">
+                        <tr>
+                          <td colSpan={3} className="px-4 py-3 text-right font-bold">Total Général :</td>
+                          <td className="px-4 py-3 text-right font-bold text-cyan-700">{viewInvoiceData.totalAmount.toFixed(2)} $</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  {viewInvoiceData.notes && (
+                    <div className="text-sm bg-gray-50 p-3 rounded-lg border">
+                      <p className="text-gray-500 font-semibold mb-1">Notes :</p>
+                      <p className="italic">{viewInvoiceData.notes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <AlertDialogFooter>
+                <AlertDialogCancel className="cursor-pointer">Fermer</AlertDialogCancel>
+                <Button onClick={() => {
+                  if(viewInvoiceData) sendInvoice(viewInvoiceData.id);
+                }} className="bg-blue-600 hover:bg-blue-700 cursor-pointer text-white">
+                  📧 Envoyer au client
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {/* AlertDialog de confirmation de suppression */}
           <AlertDialog open={!!bookingToDelete} onOpenChange={(open) => !open && setBookingToDelete(null)}>
             <AlertDialogContent className="rounded-2xl">
@@ -1176,6 +1634,83 @@ export default function AdminPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          
+          {/* Factures Tab */}
+          <TabsContent value="invoices">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-lg">💰</span>
+                  Gestion des factures
+                </CardTitle>
+                <CardDescription>
+                  Historique des factures et envoi aux clients
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3">Numéro</th>
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Client</th>
+                        <th className="px-4 py-3">Réservation (ID)</th>
+                        <th className="px-4 py-3">Montant</th>
+                        <th className="px-4 py-3">Statut</th>
+                        <th className="px-4 py-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoices.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                            Aucune facture générée.
+                          </td>
+                        </tr>
+                      ) : (
+                        invoices.map((inv) => (
+                          <tr key={inv.id} className="border-b hover:bg-gray-50">
+                            <td className="px-4 py-3 font-semibold text-cyan-700">{inv.invoiceNumber}</td>
+                            <td className="px-4 py-3">{inv.issueDate}</td>
+                            <td className="px-4 py-3">
+                              <p className="font-medium">{inv.clientName}</p>
+                              <p className="text-xs text-gray-500">{inv.clientEmail}</p>
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs">{inv.bookingId}</td>
+                            <td className="px-4 py-3 font-bold">{inv.totalAmount.toFixed(2)} $</td>
+                            <td className="px-4 py-3">
+                              <Badge className={
+                                inv.status === 'sent' ? 'bg-green-500' :
+                                inv.status === 'paid' ? 'bg-purple-500' :
+                                'bg-yellow-500'
+                              }>
+                                {inv.status === 'sent' ? 'Envoyée' : inv.status === 'paid' ? 'Payée' : 'Générée'}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="outline" onClick={() => {
+                                  setViewInvoiceData(inv);
+                                  setIsViewInvoiceOpen(true);
+                                }} className="cursor-pointer hover:bg-gray-100 text-gray-700">
+                                  👁️ Visualiser
+                                </Button>
+                                <Button size="sm" onClick={() => sendInvoice(inv.id)} className="bg-cyan-600 hover:bg-cyan-700 cursor-pointer text-white">
+                                  {inv.status === 'sent' ? 'Renvoyer' : 'Envoyer'}
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Testimonials Tab */}
           <TabsContent value="testimonials">

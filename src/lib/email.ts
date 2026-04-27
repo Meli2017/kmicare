@@ -260,3 +260,100 @@ export async function sendReviewInviteEmail(
     return false;
   }
 }
+
+// ─── Email d'envoi de facture ────────────────────────────
+export async function sendInvoiceEmail(
+  clientEmail: string,
+  clientName: string,
+  invoice: any
+) {
+  const invoiceNumber = invoice.invoiceNumber;
+  const issueDate = invoice.issueDate;
+  const totalAmount = invoice.totalAmount;
+  const itemsHtml = invoice.items.map((item: any) => `
+    <tr>
+      <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b;">${item.description}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #1e293b;">${item.quantity}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #1e293b;">${item.amount.toFixed(2)} $</td>
+    </tr>
+  `).join('');
+
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+      <!-- En-tête de la facture -->
+      <div style="background: linear-gradient(135deg, #003366, #0066cc); padding: 40px 30px; text-align: center;">
+        <h1 style="color: white; margin: 0 0 10px; font-size: 28px; letter-spacing: 1px;">KMI Home &amp; Car Care</h1>
+        <p style="color: #93c5fd; margin: 0; font-size: 16px;">Nettoyage professionnel &agrave; domicile</p>
+      </div>
+
+      <div style="padding: 40px 30px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 30px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px;">
+          <div>
+            <h2 style="color: #0f172a; margin: 0 0 8px; font-size: 24px;">FACTURE</h2>
+            <p style="color: #64748b; margin: 0; font-weight: 600;">N&deg; ${invoiceNumber}</p>
+          </div>
+          <div style="text-align: right;">
+            <p style="color: #64748b; margin: 0 0 4px; font-size: 14px;">Date d'&eacute;mission</p>
+            <p style="color: #0f172a; margin: 0; font-weight: bold; font-size: 16px;">${issueDate}</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 40px; background: #f8fafc; padding: 20px; border-radius: 8px;">
+          <p style="color: #64748b; margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Factur&eacute; &agrave; :</p>
+          <p style="color: #0f172a; margin: 0 0 4px; font-weight: bold; font-size: 18px;">${clientName}</p>
+          <p style="color: #475569; margin: 0; font-size: 15px;">${clientEmail}</p>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+          <thead>
+            <tr style="background-color: #f1f5f9;">
+              <th style="padding: 12px; text-align: left; color: #334155; font-weight: 600; border-bottom: 2px solid #cbd5e1; border-top-left-radius: 6px;">Description du service</th>
+              <th style="padding: 12px; text-align: center; color: #334155; font-weight: 600; border-bottom: 2px solid #cbd5e1;">Qt&eacute;</th>
+              <th style="padding: 12px; text-align: right; color: #334155; font-weight: 600; border-bottom: 2px solid #cbd5e1; border-top-right-radius: 6px;">Montant</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" style="padding: 20px 12px 12px; text-align: right; color: #475569; font-weight: 600; font-size: 16px;">Total &agrave; payer :</td>
+              <td style="padding: 20px 12px 12px; text-align: right; color: #003366; font-weight: bold; font-size: 20px;">${totalAmount.toFixed(2)} $</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        ${invoice.notes ? `
+        <div style="margin-bottom: 30px; background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 4px;">
+          <p style="color: #92400e; margin: 0 0 6px; font-weight: bold; font-size: 14px;">&#128221; Notes suppl&eacute;mentaires</p>
+          <p style="color: #b45309; margin: 0; font-size: 14px; line-height: 1.5;">${invoice.notes}</p>
+        </div>` : ''}
+
+        <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e2e8f0;">
+          <p style="color: #0f172a; margin: 0 0 8px; font-weight: bold; font-size: 18px;">Merci de votre confiance !</p>
+          <p style="color: #64748b; margin: 0; font-size: 15px;">Le paiement est d&ucirc; sur r&eacute;ception de cette facture.</p>
+        </div>
+      </div>
+
+      <div style="background: #1e293b; padding: 24px; text-align: center; color: #94a3b8; font-size: 13px;">
+        <p style="margin: 0 0 8px;"><strong>KMI Home &amp; Car Care</strong></p>
+        <p style="margin: 0 0 8px;">contact@kmicare.ca | www.kmicare.ca</p>
+        <p style="margin: 0;">Ce document est une facture officielle g&eacute;n&eacute;r&eacute;e &eacute;lectroniquement.</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: '"KMI Home & Car Care" <contact@kmicare.ca>',
+      to: clientEmail,
+      subject: `Facture ${invoiceNumber} - KMI Home & Car Care`,
+      html: htmlContent,
+    });
+    console.log('Email de facture envoye a ' + clientEmail);
+    return true;
+  } catch (error) {
+    console.error('Erreur envoi email facture:', error);
+    return false;
+  }
+}

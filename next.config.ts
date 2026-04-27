@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  compress: true,
+  swcMinify: true,
 
   // ✅ Security HTTP Headers
   async headers() {

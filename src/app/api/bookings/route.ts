@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     
     const bookings = await db.booking.findMany({
       orderBy: { createdAt: 'desc' },
+      include: { invoices: true }
     });
     
     return NextResponse.json(bookings);
@@ -43,9 +44,32 @@ function generateBookingNumber(date: string): string {
   return `KMI-${datePart}-${suffix}`;
 }
 
+// Rate limiting in-memory store
+const rateLimitMap = new Map<string, number>();
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 request per minute per IP
+
 // POST - Create new booking (public)
 export async function POST(request: NextRequest) {
   try {
+    // Basic IP rate limiting to prevent spam and DB exhaustion
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const now = Date.now();
+    
+    if (ip !== 'unknown') {
+      if (rateLimitMap.has(ip)) {
+        const lastRequestTime = rateLimitMap.get(ip)!;
+        if (now - lastRequestTime < RATE_LIMIT_WINDOW_MS) {
+          return NextResponse.json(
+            { error: 'Trop de requêtes. Veuillez patienter une minute avant de réessayer.' },
+            { status: 429 }
+          );
+        }
+      }
+      rateLimitMap.set(ip, now);
+      // Clean up map to prevent memory leak
+      if (rateLimitMap.size > 1000) rateLimitMap.clear();
+    }
+
     const body = await request.json();
     const { service, serviceName, date, time, address, customerName, email, phone, notes, recaptchaToken } = body;
     

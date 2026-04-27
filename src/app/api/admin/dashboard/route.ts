@@ -19,13 +19,15 @@ export async function GET() {
     const [
       blockedDates,
       bookings,
+      invoices,
       testimonials,
       socialLinks,
       dateAvailabilities,
       serviceAreas,
     ] = await Promise.all([
       db.blockedDate.findMany({ orderBy: { date: 'asc' } }),
-      db.booking.findMany({ orderBy: { createdAt: 'desc' } }),
+      db.booking.findMany({ orderBy: { createdAt: 'desc' }, include: { invoices: true } }),
+      db.invoice.findMany({ orderBy: { createdAt: 'desc' }, include: { items: true, booking: true } }),
       db.testimonial.findMany({ orderBy: { order: 'asc' } }),
       db.socialLink.findMany({ orderBy: { order: 'asc' } }),
       db.dateAvailability.findMany({
@@ -38,6 +40,7 @@ export async function GET() {
     return NextResponse.json({
       blockedDates,
       bookings,
+      invoices,
       testimonials,
       socialLinks,
       dateAvailabilities,
