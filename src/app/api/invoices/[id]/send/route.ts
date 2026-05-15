@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { cookies } from 'next/headers';
+import { isAuthenticated } from '@/lib/session';
 import { sendInvoiceEmail } from '@/lib/email';
+import { generateInvoicePDF } from '@/lib/pdf';
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get('admin_session');
     
-    if (session?.value !== 'authenticated') {
+    if (!(await isAuthenticated(cookieStore))) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -40,11 +41,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       );
     }
 
+    // Generate PDF buffer
+    const pdfBuffer = await generateInvoicePDF(invoice, invoice.clientName);
+
     // Envoi de l'email
     const emailSent = await sendInvoiceEmail(
       invoice.clientEmail,
       invoice.clientName,
-      invoice
+      invoice,
+      pdfBuffer
     );
 
     if (emailSent) {

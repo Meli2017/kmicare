@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { cookies } from 'next/headers';
+import { isAuthenticated } from '@/lib/session';
 
 // GET - Fetch all blocked dates
 export async function GET() {
@@ -23,9 +24,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get('admin_session');
     
-    if (session?.value !== 'authenticated') {
+    if (!(await isAuthenticated(cookieStore))) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -63,9 +63,8 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get('admin_session');
     
-    if (session?.value !== 'authenticated') {
+    if (!(await isAuthenticated(cookieStore))) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

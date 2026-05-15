@@ -430,9 +430,12 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingId: currentInvoiceBooking.id,
-          clientName: currentInvoiceBooking.customerName || 'Client',
+          clientName: invoiceForm.useBookingName
+            ? (currentInvoiceBooking.customerName || 'Client')
+            : (invoiceForm.customClientName.trim() || currentInvoiceBooking.customerName || 'Client'),
           clientEmail: currentInvoiceBooking.email,
           issueDate: invoiceForm.issueDate,
+          serviceDate: invoiceForm.serviceDate,
           notes: invoiceForm.notes,
           items: invoiceForm.items
         })
@@ -442,7 +445,9 @@ export default function AdminPage() {
         setInvoices([newInvoice, ...invoices]);
         setBookings(bookings.map(b => b.id === currentInvoiceBooking.id ? { ...b, invoices: [newInvoice] } : b));
         setIsInvoiceOpen(false);
-        toast({ title: "Facture générée", description: "La facture a été créée." });
+        toast({ title: "Facture générée", description: "La facture a été créée. Ouverture du PDF..." });
+        // Ouvrir le PDF automatiquement
+        window.open(`/api/invoices/${newInvoice.id}/pdf`, '_blank');
       } else {
         toast({ title: "Erreur", description: "Impossible de générer la facture.", variant: "destructive" });
       }
@@ -1280,7 +1285,10 @@ export default function AdminPage() {
                               setCurrentInvoiceBooking(booking);
                               setInvoiceForm(prev => ({
                                 ...prev,
-                                items: [{ description: booking.serviceName || booking.service, amount: 0, quantity: 1 }]
+                                serviceDate: booking.date || '',
+                                useBookingName: true,
+                                customClientName: '',
+                                items: [{ description: booking.serviceName || booking.service || '', amount: 0, quantity: 1 }]
                               }));
                               setIsInvoiceOpen(true);
                             }} className="bg-purple-600 hover:bg-purple-700 text-white">
@@ -1419,7 +1427,7 @@ export default function AdminPage() {
             setIsInvoiceOpen(open);
             if (!open) setShowInvoiceErrors(false);
           }}>
-            <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <AlertDialogContent className="max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto">
               <AlertDialogHeader>
                 <AlertDialogTitle>Générer une facture</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -1427,6 +1435,30 @@ export default function AdminPage() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <form onSubmit={handleInvoiceSubmit} className="space-y-6">
+
+                {/* Nom du client sur la facture */}
+                <div className="space-y-3 border p-4 rounded-md bg-slate-50">
+                  <Label className="text-sm font-bold">Nom affiché sur la facture</Label>
+                  <div className="flex items-center space-x-2">
+                    <Switch id="use-booking-name" checked={invoiceForm.useBookingName} onCheckedChange={(c) => setInvoiceForm({ ...invoiceForm, useBookingName: c })} />
+                    <Label htmlFor="use-booking-name" className="cursor-pointer">Utiliser le nom de la réservation</Label>
+                  </div>
+                  {invoiceForm.useBookingName ? (
+                    <p className="text-sm text-gray-500 pl-1">→ <strong>{currentInvoiceBooking?.customerName || 'Non spécifié'}</strong></p>
+                  ) : (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-500">Nom personnalisé <span className="text-red-500">*</span></Label>
+                      <Input
+                        required={!invoiceForm.useBookingName}
+                        value={invoiceForm.customClientName}
+                        onChange={(e) => setInvoiceForm({...invoiceForm, customClientName: e.target.value})}
+                        placeholder="Nom complet du client sur la facture"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Heures */}
                 <div className="flex items-center space-x-2">
                   <Switch id="validate-times" checked={invoiceForm.validateTimes} onCheckedChange={(c) => {
                     setInvoiceForm({
@@ -1438,7 +1470,7 @@ export default function AdminPage() {
                   }} />
                   <Label htmlFor="validate-times">Valider si les heures sont correctes</Label>
                 </div>
-                
+
                 {invoiceForm.validateTimes && (
                   <div className="grid grid-cols-2 gap-4 border p-4 rounded-md">
                     <div className="space-y-2">
@@ -1505,8 +1537,12 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-2 gap-4 border-t pt-4">
                   <div className="space-y-2">
-                    <Label>Date d'envoi / d'émission</Label>
+                    <Label>Date d'émission <span className="text-red-500">*</span></Label>
                     <Input required type="date" value={invoiceForm.issueDate} onChange={(e) => setInvoiceForm({...invoiceForm, issueDate: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Date du service</Label>
+                    <Input type="date" value={invoiceForm.serviceDate} onChange={(e) => setInvoiceForm({...invoiceForm, serviceDate: e.target.value})} />
                   </div>
                 </div>
 

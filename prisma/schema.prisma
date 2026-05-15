@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = "mysql://u214268980_username:KmiCareMotsDePasse2026@srv2183.hstgr.io:3306/u214268980_kmicaredb"
+  url      = env("DATABASE_URL")
 }
 
 // Admin user for authentication
@@ -137,6 +137,7 @@ model Invoice {
   totalAmount   Float
   status        String   @default("generated") // generated, sent, paid
   issueDate     String   // Format: "YYYY-MM-DD"
+  serviceDate   String?  // Format: "YYYY-MM-DD"
   notes         String?  @db.Text
   items         InvoiceItem[]
   createdAt     DateTime @default(now())
@@ -158,3 +159,15 @@ model InvoiceItem {
   updatedAt   DateTime @updatedAt
 }
 
+// Persisted rate limiting (to replace memory Map and survive server restarts)
+model RateLimit {
+  id           String    @id @default(cuid())
+  key          String    @unique // e.g. "login:192.168.1.1"
+  count        Int       @default(1)
+  resetAt      DateTime
+  blockedUntil DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([key])
+}

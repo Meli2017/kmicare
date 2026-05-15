@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { cookies } from 'next/headers';
+import { isAuthenticated } from '@/lib/session';
 
 // GET - Fetch all admin dashboard data in a single request
 // Replaces 6 separate API calls with 1 parallelised query
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get('admin_session');
 
-    if (session?.value !== 'authenticated') {
+    if (!(await isAuthenticated(cookieStore))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

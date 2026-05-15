@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { cookies } from 'next/headers';
+import { isAuthenticated } from '@/lib/session';
 import { sendBookingNotification, sendStatusUpdateEmail, sendReviewInviteEmail } from '@/lib/email';
 
 // GET - Fetch all bookings (admin only)
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get('admin_session');
     
-    if (session?.value !== 'authenticated') {
+    if (!(await isAuthenticated(cookieStore))) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
+import { checkRateLimitDB } from '@/lib/rateLimit';
+
 // ─── Génération du numéro de demande ───────────────────────────────────────
 // Format : KMI-YYYYMMDD-XXXX (ex: KMI-20260412-A3F9)
 // Caractères sans ambiguïté : pas de 0/O, 1/I
@@ -44,30 +46,26 @@ function generateBookingNumber(date: string): string {
   return `KMI-${datePart}-${suffix}`;
 }
 
-// Rate limiting in-memory store
-const rateLimitMap = new Map<string, number>();
-const RATE_LIMIT_WINDOW_MS = 60000; // 1 request per minute per IP
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 requête par minute par IP
 
 // POST - Create new booking (public)
 export async function POST(request: NextRequest) {
   try {
     // Basic IP rate limiting to prevent spam and DB exhaustion
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    const now = Date.now();
+    let ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+             request.headers.get('x-real-ip');
+             
+    // Fallback pour le développement local
+    if (!ip || ip === '::1') {
+      ip = '127.0.0.1';
+    }
     
-    if (ip !== 'unknown') {
-      if (rateLimitMap.has(ip)) {
-        const lastRequestTime = rateLimitMap.get(ip)!;
-        if (now - lastRequestTime < RATE_LIMIT_WINDOW_MS) {
-          return NextResponse.json(
-            { error: 'Trop de requêtes. Veuillez patienter une minute avant de réessayer.' },
-            { status: 429 }
-          );
-        }
-      }
-      rateLimitMap.set(ip, now);
-      // Clean up map to prevent memory leak
-      if (rateLimitMap.size > 1000) rateLimitMap.clear();
+    const { allowed } = await checkRateLimitDB(`booking:${ip}`, 1, RATE_LIMIT_WINDOW_MS);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Trop de requêtes. Veuillez patienter une minute avant de réessayer.' },
+        { status: 429 }
+      );
     }
 
     const body = await request.json();
@@ -157,9 +155,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get('admin_session');
     
-    if (session?.value !== 'authenticated') {
+    if (!(await isAuthenticated(cookieStore))) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -234,9 +231,8 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get('admin_session');
 
-    if (session?.value !== 'authenticated') {
+    if (!(await isAuthenticated(cookieStore))) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

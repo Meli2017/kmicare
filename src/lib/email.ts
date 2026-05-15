@@ -265,7 +265,8 @@ export async function sendReviewInviteEmail(
 export async function sendInvoiceEmail(
   clientEmail: string,
   clientName: string,
-  invoice: any
+  invoice: any,
+  pdfBuffer: Uint8Array
 ) {
   const invoiceNumber = invoice.invoiceNumber;
   const issueDate = invoice.issueDate;
@@ -349,6 +350,13 @@ export async function sendInvoiceEmail(
       to: clientEmail,
       subject: `Facture ${invoiceNumber} - KMI Home & Car Care`,
       html: htmlContent,
+      attachments: [
+        {
+          filename: `Facture_KMI_${invoiceNumber}.pdf`,
+          content: Buffer.from(pdfBuffer),
+          contentType: 'application/pdf',
+        }
+      ]
     });
     console.log('Email de facture envoye a ' + clientEmail);
     return true;
