@@ -32,12 +32,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     const pdfBytes = await generateInvoicePDF(invoice, invoice.clientName);
+    const buffer = Buffer.from(pdfBytes);
 
-    return new NextResponse(pdfBytes, {
+    return new Response(buffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="Facture_KMI_${invoice.invoiceNumber}.pdf"`,
+        'Content-Disposition': `inline; filename="Facture_KMI_${invoice.invoiceNumber}.pdf"`,
+        'Content-Length': buffer.length.toString()
       },
     });
   } catch (error) {

@@ -15,9 +15,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { 
   Lock, LogOut, Plus, Trash2, Clock, Calendar, CheckCircle, XCircle, 
-  AlertCircle, Loader2, Home, Car, Star, Share2, MapPin, GripVertical
+  AlertCircle, Loader2, Home, Car, Star, Share2, MapPin, GripVertical, Eye, BarChart3
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import StatisticsTab from '@/components/admin/StatisticsTab';
 
 // Types
 interface BlockedDate {
@@ -189,6 +190,7 @@ export default function AdminPage() {
 
   // Booking deletion state
   const [bookingToDelete, setBookingToDelete] = useState<string | null>(null);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
 
   // === Recherche réservations ===
   const [bookingSearch, setBookingSearch] = useState('');
@@ -420,7 +422,14 @@ export default function AdminPage() {
     e.preventDefault();
     setShowInvoiceErrors(true);
 
-    const hasErrors = invoiceForm.items.some(item => !item.description.trim() || item.amount === 0 || item.amount === '' as any);
+    const hasErrors = invoiceForm.items.some((item, index) => {
+      if (!item.description.trim()) return true;
+      if (item.amount === '' as any || item.amount === null || item.amount === undefined) return true;
+      if (item.amount < 0) return true;
+      if (index === 0 && item.amount === 0) return true;
+      if (index > 0 && item.amount === 0 && invoiceForm.items[0].amount <= 0) return true;
+      return false;
+    });
     if (hasErrors) return;
 
     if (!currentInvoiceBooking) return;
@@ -445,9 +454,7 @@ export default function AdminPage() {
         setInvoices([newInvoice, ...invoices]);
         setBookings(bookings.map(b => b.id === currentInvoiceBooking.id ? { ...b, invoices: [newInvoice] } : b));
         setIsInvoiceOpen(false);
-        toast({ title: "Facture générée", description: "La facture a été créée. Ouverture du PDF..." });
-        // Ouvrir le PDF automatiquement
-        window.open(`/api/invoices/${newInvoice.id}/pdf`, '_blank');
+        toast({ title: "Facture générée", description: "La facture a été créée avec succès." });
       } else {
         toast({ title: "Erreur", description: "Impossible de générer la facture.", variant: "destructive" });
       }
@@ -468,6 +475,27 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const deleteInvoice = async (invoiceId: string) => {
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setInvoices(invoices.filter(i => i.id !== invoiceId));
+        // Remove invoice from bookings array
+        setBookings(bookings.map(b => ({
+          ...b,
+          invoices: b.invoices?.filter(i => i.id !== invoiceId)
+        })));
+        toast({ title: "Facture supprimée", description: "La facture a été retirée avec succès." });
+      } else {
+        toast({ title: "Erreur", description: "Impossible de supprimer la facture.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setInvoiceToDelete(null);
     }
   };
 
@@ -895,6 +923,10 @@ export default function AdminPage() {
             <TabsTrigger value="invoices" className="gap-2 rounded-lg data-[state=active]:bg-cyan-600 data-[state=active]:text-white">
               <span className="text-lg">💰</span>
               Factures
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="gap-2 rounded-lg data-[state=active]:bg-cyan-600 data-[state=active]:text-white">
+              <BarChart3 className="w-4 h-4" />
+              Statistiques
             </TabsTrigger>
             <TabsTrigger value="testimonials" className="gap-2 rounded-lg data-[state=active]:bg-cyan-600 data-[state=active]:text-white">
               <Star className="w-4 h-4" />
@@ -1487,8 +1519,8 @@ export default function AdminPage() {
                 <div className="space-y-4 border-t pt-4">
                   <Label className="text-lg font-bold">Services facturés</Label>
                   {invoiceForm.items.map((item, index) => (
-                    <div key={index} className="flex items-end gap-2">
-                      <div className="flex-1 space-y-2">
+                    <div key={index} className="flex items-end gap-2 mb-8">
+                      <div className="flex-1 space-y-2 relative">
                         <Label>Description <span className="text-red-500">*</span></Label>
                         <Input required value={item.description} onChange={(e) => {
                           const newItems = [...invoiceForm.items];
@@ -1496,21 +1528,26 @@ export default function AdminPage() {
                           setInvoiceForm({...invoiceForm, items: newItems});
                         }} placeholder="Ex: Lavage complet" className={showInvoiceErrors && !item.description.trim() ? "border-red-500" : ""} />
                         {showInvoiceErrors && !item.description.trim() && (
-                          <p className="text-xs text-red-500">Ce champ est requis.</p>
+                          <p className="text-[11px] text-red-500 absolute -bottom-5 left-0 whitespace-nowrap">La description est obligatoire.</p>
                         )}
                       </div>
-                      <div className="w-24 space-y-2">
+                      <div className="w-24 space-y-2 relative">
                         <Label>Montant ($) <span className="text-red-500">*</span></Label>
-                        <Input required type="number" step="0.01" min="0" value={item.amount === 0 ? '' : item.amount} onChange={(e) => {
+                        <Input required type="number" step="0.01" min="0" value={item.amount === '' as any ? '' : item.amount} onChange={(e) => {
                           const newItems = [...invoiceForm.items];
                           newItems[index].amount = e.target.value === '' ? '' as any : (parseFloat(e.target.value) || 0);
                           setInvoiceForm({...invoiceForm, items: newItems});
-                        }} className={showInvoiceErrors && (!item.amount || item.amount === 0 || item.amount === '' as any) ? "border-red-500" : ""} />
-                        {showInvoiceErrors && (!item.amount || item.amount === 0 || item.amount === '' as any) && (
-                          <p className="text-xs text-red-500">Requis.</p>
+                        }} className={showInvoiceErrors && (item.amount === '' as any || item.amount < 0 || (index === 0 && item.amount === 0) || (index > 0 && item.amount === 0 && invoiceForm.items[0].amount <= 0)) ? "border-red-500" : ""} />
+                        {showInvoiceErrors && (item.amount === '' as any || item.amount < 0 || (index === 0 && item.amount === 0) || (index > 0 && item.amount === 0 && invoiceForm.items[0].amount <= 0)) && (
+                          <p className="text-[11px] text-red-500 absolute -bottom-5 left-0 whitespace-nowrap">
+                            {item.amount === '' as any ? "Le montant est obligatoire." 
+                            : item.amount < 0 ? "Montant invalide." 
+                            : index === 0 ? "Le premier service doit être > 0." 
+                            : "Le premier service doit être payant."}
+                          </p>
                         )}
                       </div>
-                      <div className="w-20 space-y-2">
+                      <div className="w-20 space-y-2 relative">
                         <Label>Qté</Label>
                         <Input required type="number" min="1" value={item.quantity} onChange={(e) => {
                           const newItems = [...invoiceForm.items];
@@ -1635,8 +1672,14 @@ export default function AdminPage() {
                 </div>
               )}
 
-              <AlertDialogFooter>
-                <AlertDialogCancel className="cursor-pointer">Fermer</AlertDialogCancel>
+              <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
+                <AlertDialogCancel className="cursor-pointer mt-0">Fermer</AlertDialogCancel>
+                <div className="flex-1"></div>
+                <Button onClick={() => {
+                  if(viewInvoiceData) window.open(`/api/invoices/${viewInvoiceData.id}/pdf`, '_blank');
+                }} variant="outline" className="cursor-pointer border-slate-300">
+                  📄 Voir le PDF
+                </Button>
                 <Button onClick={() => {
                   if(viewInvoiceData) sendInvoice(viewInvoiceData.id);
                 }} className="bg-blue-600 hover:bg-blue-700 cursor-pointer text-white">
@@ -1671,7 +1714,31 @@ export default function AdminPage() {
             </AlertDialogContent>
           </AlertDialog>
 
-          
+          {/* AlertDialog de confirmation de suppression de facture */}
+          <AlertDialog open={!!invoiceToDelete} onOpenChange={(open) => !open && setInvoiceToDelete(null)}>
+            <AlertDialogContent className="rounded-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+                  <Trash2 className="w-5 h-5" />
+                  Supprimer la facture ?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-600">
+                  Cette action est <strong>irréversible</strong>. La facture sera définitivement supprimée de la base de données.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => invoiceToDelete && deleteInvoice(invoiceToDelete)}
+                  className="bg-red-500 hover:bg-red-600 rounded-xl"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Supprimer définitivement
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {/* Factures Tab */}
           <TabsContent value="invoices">
             <Card>
@@ -1730,11 +1797,14 @@ export default function AdminPage() {
                                 <Button size="sm" variant="outline" onClick={() => {
                                   setViewInvoiceData(inv);
                                   setIsViewInvoiceOpen(true);
-                                }} className="cursor-pointer hover:bg-gray-100 text-gray-700">
-                                  👁️ Visualiser
+                                }} className="cursor-pointer hover:bg-gray-100 text-gray-700 w-9 h-9 p-0">
+                                  <Eye className="w-4 h-4" />
                                 </Button>
                                 <Button size="sm" onClick={() => sendInvoice(inv.id)} className="bg-cyan-600 hover:bg-cyan-700 cursor-pointer text-white">
                                   {inv.status === 'sent' ? 'Renvoyer' : 'Envoyer'}
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => setInvoiceToDelete(inv.id)} className="cursor-pointer w-9 h-9 p-0">
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
                             </td>
@@ -1746,6 +1816,11 @@ export default function AdminPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Statistiques Tab */}
+          <TabsContent value="stats">
+            <StatisticsTab bookings={bookings} invoices={invoices} />
           </TabsContent>
 
           {/* Testimonials Tab */}
